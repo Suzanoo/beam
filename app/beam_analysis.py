@@ -6,7 +6,7 @@ from absl import app, flags
 from absl.flags import FLAGS
 
 from diagram import DistributedLoad, MomentConcentrated, PointLoad
-import diagram as instance
+import diagram as diagram
 
 flags.DEFINE_float("E", 200, "GPa")
 
@@ -173,7 +173,7 @@ def main(_argv):
 
     spans, s, loads, R0 = analysis()
 
-    instance.main(FLAGS.E, I, spans, s, loads, R0)
+    diagram.main(FLAGS.E, I, spans, s, loads, R0)
 
 
 if __name__ == "__main__":

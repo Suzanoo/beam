@@ -1,4 +1,5 @@
 import numpy as np
+from tabulate import tabulate
 
 
 # Assembly X-coordinate
@@ -21,3 +22,17 @@ def X_coordinate(spans, stretch, Xt):
         Xlist = Xprov.tolist()
         X += Xlist
     return X
+
+
+# Display rebar table
+def display_df(df):
+    print(f"\nDATABASE")
+    print(
+        tabulate(
+            df,
+            headers=df.columns,
+            floatfmt=".2f",
+            showindex=False,
+            tablefmt="psql",
+        )
+    )
