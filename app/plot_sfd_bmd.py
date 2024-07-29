@@ -134,4 +134,7 @@ def plot_combined(
         fig.add_trace(trace, row=2, col=1)
 
     fig.update_layout(height=800, showlegend=False)
+
     fig.show()
+
+    return fig

@@ -68,7 +68,9 @@ def analysis():
                     print("Badly input.Try again")
 
         ask = input(f"Try again!  Y|N : ").upper()
-        if ask == "N":
+        if ask == "Y":
+            supports = []
+        else:
             break
 
     # --------------------------------------------------------------------
@@ -96,7 +98,9 @@ def analysis():
                     print("Badly input.Try again")
 
         ask = input(f"Try again!  Y|N : ").upper()
-        if ask == "N":
+        if ask == "Y":
+            R0 = []
+        else:
             break
 
     # --------------------------------------------------------------------
@@ -168,12 +172,24 @@ def analysis():
 
 
 ##Call
-def main(_argv):
-    I = float(input("Defint moment of inertia(I) in cm4 : ")) * 1e-8  # convert to m4
+def call(E, I):
+    if not I:
+        I = (
+            float(input("Defint moment of inertia(I) in cm4 : ")) * 1e-8
+        )  # convert to m4
+
+    if not E:
+        E = FLAGS.E
 
     spans, s, loads, R0 = analysis()
 
-    diagram.main(FLAGS.E, I, spans, s, loads, R0)
+    fig = diagram.main(E, I, spans, s, loads, R0)
+
+    return fig
+
+
+def main(_argv):
+    call()
 
 
 if __name__ == "__main__":

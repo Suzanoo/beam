@@ -8,7 +8,8 @@ from beam_class import Beam
 from torsion import Torsion
 
 from rebar import Rebar
-from utils import display_df
+from utils import display_df, convert_input_to_list
+from plot_section import create_html
 
 # from rc.devLength import DevLength
 
@@ -24,7 +25,6 @@ flags.DEFINE_integer("main", 12, "initial main bar definition, mm")
 flags.DEFINE_integer("trav", 6, "initial traverse bar definition, mm")
 flags.DEFINE_float("b", 0, "beam width, cm")
 flags.DEFINE_float("h", 0, "beam heigth, cm")
-flags.DEFINE_float("l", 0, "beam length, m")
 flags.DEFINE_float("Mu", 0, "Moment, kN-m")
 flags.DEFINE_float("Vu", 0, "Shear, kN")
 flags.DEFINE_float("Tu", 0, "Torsion, kN-m")
@@ -52,11 +52,11 @@ def main(_argv):
     print(f"𝜙b = {𝜙b}, 𝜙v = {𝜙v}")
 
     print(f"\nGEOMETRY")
-    print(f"b = {FLAGS.b} cm, h = {FLAGS.h} cm,l = {FLAGS.l} m")
+    print(f"b = {FLAGS.b} cm, h = {FLAGS.h} cm,")
 
     # instanciate
     beam = Beam(fc=FLAGS.fc, fy=FLAGS.fy, fv=FLAGS.fv, c=FLAGS.c)
-    beam.section_properties(FLAGS.main, FLAGS.trav, FLAGS.b, FLAGS.h, FLAGS.l)
+    beam.section_properties(FLAGS.main, FLAGS.trav, FLAGS.b, FLAGS.h)
     d, d1 = beam.eff_depth()
     𝜙Mn1 = beam.capacity(d)
 
@@ -65,13 +65,15 @@ def main(_argv):
     # --------------------------------
     ask = input(f"\nExecute beam analysis to display SFD and BMD! Y|N :").upper()
     if ask == "Y":
-        import diagram as diagram
-        from beam_analysis import analysis
+        from beam_analysis import call
 
         I = (1 / 12) * FLAGS.b * (FLAGS.h**3)  # cm4
 
-        spans, supports, loads, R0 = analysis()
-        diagram.main(FLAGS.E, I, spans, supports, loads, R0)
+        # spans, supports, loads, R0 = analysis()
+
+        sfd_bmd_fig = call(FLAGS.E * 1e-3, I * 1e-8)
+    else:
+        sfd_bmd_fig = None
 
     # --------------------------------
     ## Design
@@ -80,16 +82,16 @@ def main(_argv):
     main_reinf = []
     traverse_reinf = []
     spacing = []
+    n = 1
 
     # Display rebar df
     table = os.path.join(CURRENT, "data/Deform_Bar.csv")
     df = pd.read_csv(table)
     display_df(df)
 
-    #
-    print(f"\n--------------- SECTION -----------------")
+    # Design reinforce
     while True:
-
+        print(f"\n--------------- SECTION-{n} -----------------")
         Mu = float(input("Define Mu in kN-m : "))
         Vu = float(input("Define Vu in kN : "))
 
@@ -100,22 +102,60 @@ def main(_argv):
         data = beam.mainbar_req(d, d1, 𝜙Mn1, Mu, classify)
 
         # Design main reinf
-        n, main_dia, As_main = beam.main_design(data)
+        no, main_dia, As_main = beam.main_design(data)
 
         # Design traverse
         traverse_dia, Av, s = beam.traverse_design(d, Vu)
 
         # Collect for plotting
-        N.append(n)
+        N.append(no)
         main_reinf.append(main_dia)
         traverse_reinf.append(traverse_dia)
         spacing.append(s)
 
-        ask = input("Finish ! Y|N :").upper()
+        ask = input("Design another section! Y|N :").upper()
         if ask == "Y":
-            break
+            n += n
         else:
-            print(f"\n--------------- SECTION -----------------")
+            break
+
+    # Rebars in each layer
+    bottom_reinf = []
+    top_reinf = []
+    middle_reinf = []
+
+    print(f"\nYou have {n} section. Next is to locate the rebars step :  ")
+    ask = input("Do you want to change number of section to display  ! Y|N : ")
+    if ask == "Y":
+        n = int(input("New n = ? : "))
+
+    for i in range(n):
+        bott = convert_input_to_list(
+            input(f"Section-{i+1}, Lay rebars in bottom layer, ex. 3 2 : ")
+        )
+        top = convert_input_to_list(
+            input(f"Section-{i+1}, Lay rebars in top layer, ex. 3 2 : ")
+        )
+        middle = int(
+            input(f"Section-{i+1}, How many middle rebar? Even numbers only, ex. 4 : ")
+        )
+        # TODO check middle is even number
+        bottom_reinf.append(bott)
+        top_reinf.append(top)
+        middle_reinf.append(middle)
+
+    create_html(
+        sfd_bmd_fig,
+        n,
+        FLAGS.b,
+        FLAGS.h,
+        FLAGS.c,
+        traverse_reinf,
+        main_reinf,
+        bottom_reinf,
+        top_reinf,
+        middle_reinf,
+    )
 
     # Torsion reinf
     # if FLAGS.Tu != 0:
@@ -166,7 +206,7 @@ How to used?
 -run script
     % cd <path to project directory>
     % conda activate <your conda env name>
-    % python app/beam_design.py --fc=24 --fy=390 --b=40 --h=60 --l=5
+    % python app/beam_design.py --fc=24 --fy=390 --b=40 --h=60
 
     
 """

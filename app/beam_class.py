@@ -202,12 +202,11 @@ class Beam:
     ##
     # ----------------------------------------------------------------
     # Initialize the section properties
-    def section_properties(self, dia_main, dia_traverse, b, h, l):
+    def section_properties(self, dia_main, dia_traverse, b, h):
         self.dia_main = dia_main  # mm
         self.dia_traverse = dia_traverse  # mm
         self.b = b  # cm
         self.h = h  # cm
-        self.l = l  # m
         self.beta()
         self.percent_reinf()
 

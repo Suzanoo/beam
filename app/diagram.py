@@ -699,7 +699,7 @@ def main(E, I, spans, support_type, loads, R0):
         num_of_spans, stretch, loads, F
     )
 
-    plot_combined(
+    fig = plot_combined(
         num_of_spans,
         Ltotal,
         stretch,
@@ -719,6 +719,8 @@ def main(E, I, spans, support_type, loads, R0):
         "========================================================================================="
     )
     print("Any comment --> highwaynumber12@gmail.com")
+
+    return fig
 
 
 # =========================================================================================

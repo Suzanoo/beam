@@ -2,6 +2,10 @@ import numpy as np
 from tabulate import tabulate
 
 
+def convert_input_to_list(input_string):
+    return list(map(int, input_string.split()))
+
+
 # Assembly X-coordinate
 def xi_coordinate(spans, stretch):
     numS = 1000
