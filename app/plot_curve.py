@@ -100,6 +100,7 @@ def plot_combined(
     stretch,
     shearDFQ,
     momentDFQ,
+    # deflectionDFQ,
     maxShear,
     minShear,
     XmaxQ,
@@ -116,9 +117,21 @@ def plot_combined(
         "Moment", spans, Ltotal, stretch, momentDFQ, maxMoment, minMoment, XmaxM, XminM
     )
 
+    # deflection_fig = plot_diagram(
+    #     "Deflection",
+    #     spans,
+    #     Ltotal,
+    #     stretch,
+    #     deflectionDFQ,
+    #     maxMoment,
+    #     minMoment,
+    #     XmaxM,
+    #     XminM,
+    # )
+
     # Create subplots
     fig = make_subplots(
-        rows=2,
+        rows=3,
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.1,
@@ -132,6 +145,10 @@ def plot_combined(
     # Add moment diagram
     for trace in moment_fig["data"]:
         fig.add_trace(trace, row=2, col=1)
+
+    # Add deflection
+    # for trace in deflection_fig["data"]:
+    #     fig.add_trace(trace, row=3, col=1)
 
     fig.update_layout(height=800, showlegend=False)
 

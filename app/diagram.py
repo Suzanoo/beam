@@ -5,10 +5,9 @@
 ## https://www.youtube.com/watch?v=hCmXwMQWafk&list=LL&index=6&t=3642s
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from utils import xi_coordinate
-from plot_sfd_bmd import plot_combined
+from plot_curve import plot_combined
 
 np.set_printoptions(precision=3)
 
@@ -104,10 +103,10 @@ class PointLoad(Load):
             / L**2
             * np.array(
                 [
-                    [b**2 / L * (3 * a + b)],
-                    [a * b**2],
-                    [a**2 / L * (a + 3 * b)],
-                    [-(a**2) * b],
+                    [b**2 / L * (3 * a + b)],  # RL
+                    [a * b**2],  # ML
+                    [a**2 / L * (a + 3 * b)],  # RR
+                    [-(a**2) * b],  # MR
                 ]
             )
         )
@@ -161,7 +160,7 @@ class DistributedLoad(Load):
             + "m"
         )
 
-    # Qf = [Fy1, M1, Fy2, M2,...]
+    # Qf = [RL, ML, RR, MR]
     def Qf(self, L):
         """Equivalent Nodal Reactions for a Load
         evenly distributed.
@@ -236,6 +235,9 @@ class DistributedLoad(Load):
             return V2 * (L - x)
         else:
             return 0
+
+    def Δx(self, x, L):
+        pass
 
 
 # Concentrated moment
@@ -403,6 +405,7 @@ calculate d1, θ1, θ2,... exclude known == 0, 0, ...
 """
 
 
+# Calculate nodal displacement
 def displacement(d, K, Qf, R):
     """d : list of displacement vector
     K : np.array of global stiffness
@@ -571,8 +574,8 @@ def moments(spans, stretch, loads, F):
         minF = min(Moments[i])  # Mínimo flector
         print(f"Span {i+1} : maxF = {maxF/1000:.2f}, minF = {minF/1000:.2f} ,kN-m")
 
-        maxMoment.append(maxF)
-        minMoment.append(minF)
+        maxMoment.append(-maxF)
+        minMoment.append(-minF)
         indMaxF = np.where(Moments[i] == maxF)[0][0]  # index of maximum bending
         indMinF = np.where(Moments[i] == minF)[0][0]  # index of minimum bending
         XmaxF.append(Xt[i][indMaxF])  # location of maximum bending
@@ -582,16 +585,79 @@ def moments(spans, stretch, loads, F):
     # Bending moment values for graphs
     DMF = []
     for i in range(spans):
-        # Values for list type DMF
-        # Flex = (Moments[i]).tolist() #We go to kNm and convert to list, N-m
-        Flex = (Moments[i] / 1000).tolist()  # We go to kNm and convert to list. kN-m
+        Flex = (-1 * Moments[i] / 1000).tolist()  # ***
         DMF += Flex
 
     return DMF, maxMoment, minMoment, XmaxF, XminF
 
 
+def calculate_gradients(moments, X_total):
+    gradients = np.gradient(moments, X_total)
+    return gradients
+
+
+# Define the function to find turning points
+def find_turning_points(gradients, X_total):
+    zero_crossings = np.where(np.diff(np.sign(gradients)))[0]
+    turning_points = X_total[zero_crossings]
+    print(f"Turning points : {np.array(turning_points)}")
+    return turning_points
+
+
+# Calculate deflection values
+def deflections(moments, stretch):
+    spans = len(stretch)
+    total_length = sum([s.L for s in stretch])
+    numS, Xt = xi_coordinate(spans, stretch)
+
+    X_total = np.concatenate(Xt) + np.repeat(
+        np.cumsum([0] + [s.L for s in stretch[:-1]]), numS
+    )
+
+    gradients = calculate_gradients(moments, X_total)
+    turning_points = find_turning_points(gradients, X_total)
+
+    deflection = np.zeros(len(X_total))
+
+    for j in range(1, len(X_total)):
+        xi = X_total[j]
+
+        # Find the nearest turning point before the current xi
+        xt = turning_points[turning_points <= xi]
+        if len(xt) == 0:
+            xt = 0
+        else:
+            xt = xt[-1]
+
+        if xi <= xt:
+            if gradients[j] >= 0:
+                deflection[j] = np.trapz(moments[: j + 1], X_total[: j + 1])
+            else:
+                deflection[j] = np.trapz(moments[: j + 1], X_total[: j + 1])
+        else:
+            if gradients[j] < 0:
+                deflection[j] = np.trapz(
+                    moments[: np.where(X_total == xt)[0][0] + 1],
+                    X_total[: np.where(X_total == xt)[0][0] + 1],
+                ) - np.trapz(
+                    moments[np.where(X_total == xt)[0][0] : j + 1],
+                    X_total[np.where(X_total == xt)[0][0] : j + 1],
+                )
+            else:
+                deflection[j] = np.trapz(
+                    moments[: np.where(X_total == xt)[0][0] + 1],
+                    X_total[: np.where(X_total == xt)[0][0] + 1],
+                ) - np.trapz(
+                    moments[np.where(X_total == xt)[0][0] : j + 1],
+                    X_total[np.where(X_total == xt)[0][0] : j + 1],
+                )
+
+        deflection[j] = -1 * deflection[j] * 1e-5
+    return deflection
+
+
 # =========================================================================================
-####
+#### E, I, spans, support, loads, R
 def main(E, I, spans, support_type, loads, R0):
     """
     E in GPa
@@ -699,12 +765,15 @@ def main(E, I, spans, support_type, loads, R0):
         num_of_spans, stretch, loads, F
     )
 
+    # deflectionDFQ = deflections(momentDMF, stretch)
+
     fig = plot_combined(
         num_of_spans,
         Ltotal,
         stretch,
         shearDFQ,
         momentDMF,
+        # deflectionDFQ,
         maxShear,
         minShear,
         XmaxQ,
@@ -729,35 +798,39 @@ def main(E, I, spans, support_type, loads, R0):
 ##  Recheck :  https://platform.skyciv.com/beam
 
 """
-E = 200  # GPa
-I = (0.9 * 1e-3) * 1e-8  # m4
 
-spans = [3, 3]
+"""
+E = 200  # GPa
+I = (1000 * np.power(24, 3)) * 1e-8  # m4
+
+spans = [3, 3, 3, 3, 3]
 
 # fixd=0, vert-scroll=1, pin=2, free=3
-support = [2, 2, 2]
+support = [2, 0, 0, 0, 0, 2]
 
 
-R0 = [0, 0, 0, 0, 0, 0]
+R0 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 # Load in stretch 1
-# P1 = PointLoad(20000, 5)#, Down+ Up-
+# P1 = PointLoad(20000, 5) # Down+ Up-
 # m1 = MomentConcentrated(-30000, 5)#counterclockwise +
 
-q1 = DistributedLoad(2000, 0, 3)  # , Down+ Up-
-q2 = DistributedLoad(2500, 0, 3)  # , Down+ Up-
-# q3 = DistributedLoad(500, 0, 3.25)#, Down+ Up-
-# q4 = DistributedLoad(500, 0, .5)#, Down+ Up-
+q1 = DistributedLoad(173000, 0, 3)  # Down+ Up-
+q2 = DistributedLoad(173000, 0, 3)
+q3 = DistributedLoad(173000, 0, 3)
+q4 = DistributedLoad(173000, 0, 3)
+q5 = DistributedLoad(173000, 0, 3)
 
 
 f1 = [q1]  # Load in stretch 1
 f2 = [q2]  # Load in stretch 2
-# f3 = [q3] # Load in stretch 3...
-# f4 = [q4]
-loads = [f1, f2]
+f3 = [q3]  # Load in stretch 3...
+f4 = [q4]
+f5 = [q5]
+loads = [f1, f2, f3, f4, f5]
 
 if __name__ == "__main__":
     main(E, I, spans, support, loads, R0)
-"""
+
 
 # python app/diagram.py

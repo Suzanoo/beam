@@ -1,13 +1,15 @@
 import os
 import pandas as pd
 
-from absl import app, flags, logging
+from absl import app, flags
 from absl.flags import FLAGS
 
 from beam_class import Beam
 from torsion import Torsion
 
 from rebar import Rebar
+from beam_analysis import Analysis
+
 from utils import display_df, convert_input_to_list
 from plot_section import create_html
 
@@ -16,8 +18,8 @@ from plot_section import create_html
 ## FLAGS definition
 # https://stackoverflow.com/questions/69471891/clarification-regarding-abseil-library-flags
 
-flags.DEFINE_float("fc", 23.5, "240ksc, MPa")
-flags.DEFINE_integer("fy", 295, "SD40 main bar, MPa")
+flags.DEFINE_float("fc", 24, "240ksc, MPa")
+flags.DEFINE_integer("fy", 390, "SD40 main bar, MPa")
 flags.DEFINE_integer("fv", 235, "SR24 traverse, MPa")
 flags.DEFINE_float("c", 3, "concrete covering, cm")
 
@@ -65,15 +67,13 @@ def main(_argv):
     # --------------------------------
     ask = input(f"\nExecute beam analysis to display SFD and BMD! Y|N :").upper()
     if ask == "Y":
-        from beam_analysis import call
-
+        analysis = Analysis()
         I = (1 / 12) * FLAGS.b * (FLAGS.h**3)  # cm4
 
         # spans, supports, loads, R0 = analysis()
-
-        sfd_bmd_fig = call(FLAGS.E * 1e-3, I * 1e-8)
+        fig = analysis.analysis(FLAGS.E * 1e-3, I * 1e-8)
     else:
-        sfd_bmd_fig = None
+        fig = None
 
     # --------------------------------
     ## Design
@@ -145,7 +145,7 @@ def main(_argv):
         middle_reinf.append(middle)
 
     create_html(
-        sfd_bmd_fig,
+        fig,
         n,
         FLAGS.b,
         FLAGS.h,
@@ -201,12 +201,12 @@ if __name__ == "__main__":
 
 """
 How to used?
--Please see FLAGS definition for unit informations
--Make sure you are in the project directory run python in terminal(Mac) or command line(Windows)
+-Please see FLAGS definition for alternative
+-Make sure you are in the project directory 
 -run script
     % cd <path to project directory>
     % conda activate <your conda env name>
-    % python app/beam_design.py --fc=24 --fy=390 --b=40 --h=60
+    % python app/beam_design.py --b=3000 --h=24
 
     
 """
