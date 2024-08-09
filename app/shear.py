@@ -118,19 +118,19 @@ class ShearReinforcement:
         while True:
             s = int(
                 input(
-                    f"\nTraverse: Spacing must less than  = {d/2:.2f} and 50 cm, please select spacing: "
+                    f"\nTraverse: Spacing must less than  = {d/2:.2f} and 50 cm, please try spacing in cm : "
                 )
             )
             Avmin = 0.0015 * b * s
             print(f"Av min = {Avmin:.2f} cm2, please select diameter of traverse.")
 
-            dia, Av = rebar.rebar_selected()
+            traverse_dia, Av = rebar.rebar_selected()
             Av = 2 * Av
 
             print(f"Av = {Av:.2f} cm2")
 
             if Av >= Avmin:
-                print(f"[INFO] Traverse: ø-{dia} mm @ {s} cm")
+                print(f"[INFO] Traverse: ø-{traverse_dia} mm @ {s} cm")
                 break
             else:
                 print("Select again !!!")
@@ -140,7 +140,7 @@ class ShearReinforcement:
         while True:
             s2 = int(
                 input(
-                    f"\nExtra Horizontal: Spacing must less than  = {d/3:.2f} and 50 cm, please select spacing: "
+                    f"\nExtra Horizontal: Spacing must less than  = {d/3:.2f} and 50 cm, please try spacing in cm: "
                 )
             )
             Avhmin = 0.0025 * b * s2
@@ -148,13 +148,15 @@ class ShearReinforcement:
                 f"Avh min = {Avhmin:.2f} cm2, please select diameter of horizontal rebar."
             )
 
-            dia, Avh = rebar.rebar_selected()
+            horizontal_dia, Avh = rebar.rebar_selected()
             Avh = 2 * Avh
 
             print(f"Avh = {Avh:.2f} cm2")
 
             if Avh >= Avhmin:
-                print(f"[INFO] Horizontal reinforcement: ø-{dia} mm @ {s2} cm")
+                print(
+                    f"[INFO] Horizontal reinforcement: ø-{horizontal_dia} mm @ {s2} cm"
+                )
                 break
             else:
                 print("Select again !!!")
@@ -169,4 +171,4 @@ class ShearReinforcement:
             )
             * 1e-1
         )  # kN
-        return 𝜙Vs
+        return traverse_dia, s, horizontal_dia, s2, 𝜙Vs

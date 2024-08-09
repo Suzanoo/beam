@@ -6,7 +6,6 @@ from absl.flags import FLAGS
 
 from beam_class import Beam
 from torsion import Torsion
-
 from rebar import Rebar
 from beam_analysis import Analysis
 
@@ -42,10 +41,7 @@ CURRENT = os.getcwd()
 
 # ----------------------------------
 def main(_argv):
-    print("TYPICAL BEAM DESIGN : USD METHOD")
-    print(
-        "========================================================================================================"
-    )
+    print("=============== TYPICAL BEAM DESIGN : USD METHOD ===============")
 
     print("PROPERTIES")
     print(
@@ -120,29 +116,7 @@ def main(_argv):
             break
 
     # Rebars in each layer
-    bottom_reinf = []
-    top_reinf = []
-    middle_reinf = []
-
-    print(f"\nYou have {n} section. Next is to locate the rebars step :  ")
-    ask = input("Do you want to change number of section to display  ! Y|N : ")
-    if ask == "Y":
-        n = int(input("New n = ? : "))
-
-    for i in range(n):
-        bott = convert_input_to_list(
-            input(f"Section-{i+1}, Lay rebars in bottom layer, ex. 3 2 : ")
-        )
-        top = convert_input_to_list(
-            input(f"Section-{i+1}, Lay rebars in top layer, ex. 3 2 : ")
-        )
-        middle = int(
-            input(f"Section-{i+1}, How many middle rebar? Even numbers only, ex. 4 : ")
-        )
-        # TODO check middle is even number
-        bottom_reinf.append(bott)
-        top_reinf.append(top)
-        middle_reinf.append(middle)
+    bottom_layer, top_layer, middle_layer = rebar.rebar_laying(n)
 
     create_html(
         fig,
@@ -152,9 +126,9 @@ def main(_argv):
         FLAGS.c,
         traverse_reinf,
         main_reinf,
-        bottom_reinf,
-        top_reinf,
-        middle_reinf,
+        bottom_layer,
+        top_layer,
+        middle_layer,
     )
 
     # Torsion reinf
@@ -207,6 +181,7 @@ How to used?
     % cd <path to project directory>
     % conda activate <your conda env name>
     % python app/beam_design.py --b=3000 --h=24
+    % python app/beam_design.py --b=40 --h=60
 
     
 """

@@ -11,8 +11,8 @@ import diagram as diagram
 from utils import get_valid_integer, get_valid_list_input
 
 flags.DEFINE_float("E", 200, "GPa")
-flags.DEFINE_float("b", 0, "beam width, cm")
-flags.DEFINE_float("h", 0, "beam depth, cm")
+# flags.DEFINE_float("b", 0, "beam width, cm")
+# flags.DEFINE_float("h", 0, "beam depth, cm")
 
 
 class Analysis:
@@ -196,22 +196,18 @@ class Analysis:
         # return spans, supports, loads, R0
 
     def analysis(self, E=0, I=0):
-        print("BEAM ANALYSIS : METRIX STIFFNESS METHOD")
+        print("=============== BEAM ANALYSIS : METRIX STIFFNESS METHOD ===============")
         print("Code adopt from Prof. Fredy Gabriel Ramírez Villanueva repository")
         print("https://github.com/SirPrime/MatrixAnalysis-Beams.git")
         print("")
-        print("Tutorial: YouTube Channel 'วิเคราะห์โครงสร้าง กับ อ.กิจ'")
         print("https://www.youtube.com/watch?v=hCmXwMQWafk&list=LL&index=6&t=3642s")
         print(
             "https://www.erbakan.edu.tr/storage/files/department/insaatmuhendisligi/editor/DersSayfalari/YapSt2/06_Matrix_Beam.pdf"
         )
-        print(
-            "========================================================================================="
-        )
 
         if I == 0:
             I = (
-                float(input("Defint moment of inertia(I) in cm4 : ")) * 1e-8
+                float(input(f"Defint moment of inertia(I) in cm4 : ")) * 1e-8
             )  # convert to m4
 
         if E == 0:

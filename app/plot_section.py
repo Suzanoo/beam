@@ -4,6 +4,7 @@ from plotly.subplots import make_subplots
 import pandas as pd
 
 
+# typical layer position : -EQ-EQ-EQ-
 def calculate_rebar_positions(c, b, N, main_dia, travesre_dia):
     if N == 1:
         return [c + (b - 2 * c) / 2]
@@ -20,8 +21,17 @@ def calculate_rebar_positions(c, b, N, main_dia, travesre_dia):
         return positions
 
 
+# Calculate coordinates of rebars
 def get_rebar_coordinates(
-    b, d, c, main_dia, travesre_dia, bottom_layers, top_layers, middle_rebars
+    b,
+    d,
+    c,
+    main_dia,
+    travesre_dia,
+    middle_dia,
+    bottom_layers,
+    top_layers,
+    middle_rebars,
 ):
     rebar_data = []
 
@@ -54,17 +64,26 @@ def get_rebar_coordinates(
             y_position = max(y_bottom_layers) + s * i
             z = d - y_position
             rebar_data.append(
-                {"x": c + travesre_dia + main_dia / 2, "y": y_position, "z": z}
+                {"x": c + travesre_dia + middle_dia / 2, "y": y_position, "z": z}
             )
             rebar_data.append(
-                {"x": b - c - travesre_dia - main_dia / 2, "y": y_position, "z": z}
+                {"x": b - c - travesre_dia - middle_dia / 2, "y": y_position, "z": z}
             )
 
     return pd.DataFrame(rebar_data)
 
 
 def plot_rc_section(
-    fig, b, d, c, travesre_dia, main_dia, bottom_layers, top_layers, middle_rebars
+    fig,
+    b,
+    d,
+    c,
+    main_dia,
+    travesre_dia,
+    middle_dia,
+    bottom_layers,
+    top_layers,
+    no_of_middle_rebars,
 ):
     # fig = go.Figure()
 
@@ -133,8 +152,8 @@ def plot_rc_section(
             )
 
     # Calculate positions of middle reinforcement layers
-    if middle_rebars > 0:
-        n = middle_rebars // 2
+    if no_of_middle_rebars > 0:
+        n = no_of_middle_rebars // 2
         d_middle = min(y_top_layers) - max(y_bottom_layers)
         s = d_middle / (n + 1)
 
@@ -143,18 +162,18 @@ def plot_rc_section(
             fig.add_shape(
                 type="circle",
                 x0=c + travesre_dia,
-                y0=y_position - main_dia / 2,
-                x1=c + travesre_dia + main_dia,
-                y1=y_position + main_dia / 2,
+                y0=y_position - middle_dia / 2,
+                x1=c + travesre_dia + middle_dia,
+                y1=y_position + middle_dia / 2,
                 line=dict(color="blue"),
                 fillcolor="blue",
             )
             fig.add_shape(
                 type="circle",
-                x0=b - c - travesre_dia - main_dia,
-                y0=y_position - main_dia / 2,
+                x0=b - c - travesre_dia - middle_dia,
+                y0=y_position - middle_dia / 2,
                 x1=b - c - travesre_dia,
-                y1=y_position + main_dia / 2,
+                y1=y_position + middle_dia / 2,
                 line=dict(color="blue"),
                 fillcolor="blue",
             )
@@ -179,11 +198,12 @@ def create_one_plot(
     b,
     h,
     covering,
-    traverse_dia,
     main_dia,
+    traverse_dia,
+    middle_dia,
     bottom_layers,
     top_layers,
-    middle_rebars,
+    no_of_middle_rebars,
 ):
     section_fig = go.Figure()
     section_fig = plot_rc_section(
@@ -191,11 +211,12 @@ def create_one_plot(
         b,
         h,
         covering,
-        traverse_dia / 10,
         main_dia / 10,
+        traverse_dia / 10,
+        middle_dia / 10,
         bottom_layers,
         top_layers,
-        middle_rebars,
+        no_of_middle_rebars,
     )
 
     return section_fig
@@ -207,11 +228,12 @@ def create_html(
     b,
     h,
     covering,
-    traverse_dia,
     main_dia,
+    traverse_dia,
+    middle_dia,
     bottom_layers,
     top_layers,
-    middle_rebars,
+    no_of_middle_rebars,
 ):
     section_htmls = []
     for i in range(N):
@@ -219,11 +241,12 @@ def create_html(
             b,
             h,
             covering,
-            traverse_dia[i],
             main_dia[i],
+            traverse_dia[i],
+            middle_dia[i],
             bottom_layers[i],
             top_layers[i],
-            middle_rebars[i],
+            no_of_middle_rebars[i],
         )
         # Save each plot to a string
         section_html = section_fig.to_html(full_html=False, include_plotlyjs="cdn")

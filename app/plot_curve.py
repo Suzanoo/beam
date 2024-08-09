@@ -8,7 +8,7 @@ def plot_diagram(
     label, spans, Ltotal, stretch, DFQ, max_values, min_values, Xmax_values, Xmin_values
 ):
 
-    numS, Xt = xi_coordinate(spans, stretch)
+    numS, Xt = xi_coordinate(spans)
 
     X = X_coordinate(spans, stretch, Xt)
 
@@ -28,7 +28,7 @@ def plot_diagram(
     def calculateMarkers(max_values, min_values, Xmax_values, Xmin_values):
         temp = 0
         annotations = []
-        for i in range(spans):
+        for i in range(len(spans)):
             if i > 0:
                 temp += stretch[i - 1].L
             ubicMax = temp + Xmax_values[i]
@@ -72,9 +72,12 @@ def plot_diagram(
 
         return annotations
 
-    fig.update_layout(
-        annotations=calculateMarkers(max_values, min_values, Xmax_values, Xmin_values)
-    )
+    if max_values != None:
+        fig.update_layout(
+            annotations=calculateMarkers(
+                max_values, min_values, Xmax_values, Xmin_values
+            )
+        )
 
     # To shade the graph.
     Xgraf = [0] + X + [Ltotal]
@@ -100,7 +103,6 @@ def plot_combined(
     stretch,
     shearDFQ,
     momentDFQ,
-    # deflectionDFQ,
     maxShear,
     minShear,
     XmaxQ,
@@ -109,6 +111,7 @@ def plot_combined(
     minMoment,
     XmaxM,
     XminM,
+    deflectionDFQ,
 ):
     shear_fig = plot_diagram(
         "Shear", spans, Ltotal, stretch, shearDFQ, maxShear, minShear, XmaxQ, XminQ
@@ -117,17 +120,17 @@ def plot_combined(
         "Moment", spans, Ltotal, stretch, momentDFQ, maxMoment, minMoment, XmaxM, XminM
     )
 
-    # deflection_fig = plot_diagram(
-    #     "Deflection",
-    #     spans,
-    #     Ltotal,
-    #     stretch,
-    #     deflectionDFQ,
-    #     maxMoment,
-    #     minMoment,
-    #     XmaxM,
-    #     XminM,
-    # )
+    deflection_fig = plot_diagram(
+        "Deflection",
+        spans,
+        Ltotal,
+        stretch,
+        deflectionDFQ,
+        None,
+        None,
+        None,
+        None,
+    )
 
     # Create subplots
     fig = make_subplots(
@@ -135,7 +138,12 @@ def plot_combined(
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.1,
-        subplot_titles=("Shear Force Diagram(kN)", "Bending Moment Diagram(kN-m)"),
+        # subplot_titles=("Shear Force Diagram(kN)", "Bending Moment Diagram(kN-m)"),
+        subplot_titles=(
+            "Shear Force Diagram(kN)",
+            "Bending Moment Diagram(kN-m)",
+            "Delta by Cubic Interpolation",
+        ),
     )
 
     # Add shear force diagram
@@ -147,8 +155,9 @@ def plot_combined(
         fig.add_trace(trace, row=2, col=1)
 
     # Add deflection
-    # for trace in deflection_fig["data"]:
-    #     fig.add_trace(trace, row=3, col=1)
+
+    for trace in deflection_fig["data"]:
+        fig.add_trace(trace, row=3, col=1)
 
     fig.update_layout(height=800, showlegend=False)
 

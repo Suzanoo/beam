@@ -1,9 +1,6 @@
 # OOP for Beam
 import numpy as np
 
-
-from absl import logging
-
 from shear import ShearReinforcement
 from rebar import Rebar
 
@@ -171,7 +168,7 @@ class Beam:
         if double reinf. --> data = [fs, As_major, As_minor]
         if single reinf. --> data = [As_major]
         """
-        print(f"\n[INFO] Main)")
+        print(f"\nMain Reinforcement)")
         while True:
             # Double Reinforcement
             # Decision for compression steel if it's not yeild

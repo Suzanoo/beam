@@ -45,11 +45,9 @@ def convert_input_to_list(input_string):
 
 
 # Assembly X-coordinate
-def xi_coordinate(spans, stretch):
-    numS = 1000
-    Xt = []
-    for i in range(spans):
-        Xt.append(np.linspace(0, stretch[i].L, numS))  # 1000 points in each stretch
+def xi_coordinate(spans):
+    numS = 1000  # Number of points per span
+    Xt = [np.linspace(0, span, numS) for span in spans]
     return numS, Xt
 
 
@@ -57,7 +55,7 @@ def xi_coordinate(spans, stretch):
 def X_coordinate(spans, stretch, Xt):
     X = []
     temp = 0
-    for i in range(spans):
+    for i in range(len(spans)):
         if i > 0:
             temp += stretch[i - 1].L
         Xprov = Xt[i] + temp

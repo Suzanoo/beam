@@ -8,6 +8,7 @@ import numpy as np
 
 from utils import xi_coordinate
 from plot_curve import plot_combined
+from deflection import deflection
 
 np.set_printoptions(precision=3)
 
@@ -149,16 +150,7 @@ class DistributedLoad(Load):
         self.l = l
 
     def __str__(self):
-        return (
-            "Load distribution\n   Value= " + str(self.q) + "N/m"
-            ", "
-            + "\n   Beginning= "
-            + str(self.a)
-            + "m"
-            + "\n   Longitud= "
-            + str(self.l)
-            + "m"
-        )
+        return f"Load distribution \n  Value = {str(self.q)} N/m \n  From {str(self.a)} m to {str(self.l)} m"
 
     # Qf = [RL, ML, RR, MR]
     def Qf(self, L):
@@ -303,7 +295,7 @@ class MomentConcentrated(Load):
 
 # =========================================================================================
 # Method
-## displacement matrix : di = ['d1y', 'θ1', 'd2y', 'θ2', 'd3y', 'θ3',...]
+## Assembly displacement matrix : di = ['d1y', 'θ1', 'd2y', 'θ2', 'd3y', 'θ3',...]
 def nodal_displacement(list_of_suport):
     # "0" : "Embedement",
     # "1" : "Allows vertical scroll",
@@ -326,11 +318,11 @@ def nodal_displacement(list_of_suport):
         else:
             pass
 
-    print(f"\nNodal displacement matrix \nd = {d}")
+    print(f"\nAssembly Nodal Displacement \nd = {d}")
     return d
 
 
-## Reaction matrix : R = ['F1y', 'M1', 'F2y', 'M2', 'F3y', 'M3',...]
+## Assembly reaction matrix : R = ['F1y', 'M1', 'F2y', 'M2', 'F3y', 'M3',...]
 def nodal_external_force(list_of_suport, R0):
     R = []
     for i in range(0, len(list_of_suport)):
@@ -354,7 +346,7 @@ def nodal_external_force(list_of_suport, R0):
             if R0[i] != 0:
                 R[i] = R0[i]
 
-    print(f"\nNodal reaction matrix \nR = {R}")
+    print(f"\nAssembly Nodal Reaction \nR = {R}")
     return R
 
 
@@ -362,9 +354,9 @@ def nodal_external_force(list_of_suport, R0):
 ## Assembly of the global stiffness matrix
 def global_stiffness(nodes, spans, stretch):
     K = np.zeros((2 * nodes, 2 * nodes))
-    for i in range(spans):
+    for i in range(len(spans)):
         K[2 * i : 2 * i + 4, 2 * i : 2 * i + 4] += stretch[i].k
-    print(f"Stiffness matrix : K")
+    print(f"[CALCULATE] Stiffness matrix : K")
     print(f"{K}")
 
     return K
@@ -385,11 +377,11 @@ def local_FEF(b, loads, stretch):  # b = Number of stretchs or bars
 
 
 ## Assembly the global fixed-end force
-def global_FEF(nodes, b, QF):  # b = Number of stretchs or bars
+def global_FEF(nodes, spans, QF):
     Qf = np.zeros((2 * nodes, 1))
-    for i in range(b):
+    for i in range(len(spans)):
         Qf[2 * i : 2 * i + 4, :] += QF[i]
-    print(f"\nGlobal Fixend Force, Qf :")
+    print(f"\n[CALCULATE] Global Fixend Force(Qf), N")
     print(f"{Qf}")
     return Qf
 
@@ -407,67 +399,82 @@ calculate d1, θ1, θ2,... exclude known == 0, 0, ...
 
 # Calculate nodal displacement
 def displacement(d, K, Qf, R):
-    """d : list of displacement vector
+    """
+    d : list of displacement vector
     K : np.array of global stiffness
     Qf : np.array of global FEF
     R = list of nodal external force/reaction
     """
-    # index of unknowm displacement
-    J = np.where(np.array(d) != "0")[0].tolist()
+    # If all fixed support
+    if all(value == 0 for value in d):
+        di = np.array(d)
+    else:
 
-    # index of reaction matched unknowm displacement
-    I = J
+        # index of unknowm displacement
+        J = np.where(np.array(d) != "0")[0].tolist()
 
-    R1 = np.zeros((len(J), 1), dtype=float)  # --->Matrix [Ri]
+        # index of reaction matched unknowm displacement
+        I = J
 
-    # Assembly Ki matched index
-    K1 = np.zeros((len(I), len(J)))
-    for i in range(0, len(I)):
-        for j in range(0, len(J)):
-            K1[i][j] = K[I[i]][J[j]]  # --->Matrix [Ki]
+        R1 = np.zeros((len(J), 1), dtype=float)  # --->Matrix [Ri]
 
-    # Assembly Qfi index
-    Q01 = []
-    for item in I:
-        q01 = [Qf[item][0]]
-        Q01.append(q01)
-    Q01 = np.array(Q01)  # --->Matrix [Qfi]
+        # Assembly Ki matched index
+        K1 = np.zeros((len(I), len(J)))
+        for i in range(0, len(I)):
+            for j in range(0, len(J)):
+                K1[i][j] = K[I[i]][J[j]]  # --->Matrix [Ki]
 
-    # Assembly R index
-    for i in range(0, len(I)):
-        R1[i][0] = R[I[i]]
+        # Assembly Qfi index
+        Q01 = []
+        for item in I:
+            q01 = [Qf[item][0]]
+            Q01.append(q01)
+        Q01 = np.array(Q01)  # --->Matrix [Qfi]
 
-    # Calculate displacement
-    # [di] = inv[Ki][Ri]+(-1*[Qfi])
-    K1 = np.linalg.inv(K1)  # inverse[K1]
+        # Assembly R index
+        for i in range(0, len(I)):
+            R1[i][0] = R[I[i]]
 
-    # unknown displacement
-    di = np.dot(K1, R1 + (-1 * Q01))  # dot matrix
+        # Calculate displacement
+        # [di] = inv[Ki][Ri]+(-1*[Qfi])
+        K1 = np.linalg.inv(K1)  # inverse[K1]
+
+        # unknown displacement
+        di = np.dot(K1, R1 + (-1 * Q01))  # dot matrix
 
     return di  # disp = m, θ = radian
 
 
-# Calculated Nodal Reaction
+# Calculated Nodal Force
 # [R] = [K][d] + [Qf]
 def reaction(d, di, K, Qf):
-    # index of d where di will be added
-    ii = np.where(np.array(d) != "0")[0].tolist()
+    # If all fixed support
+    if all(value == 0 for value in d):
+        dy = np.array(d).reshape(-1, 1)
 
-    # added di to displacement d-matrix
-    for i in range(len(ii)):
-        d[ii[i]] = di[i][0]
+        # Calculated nodal reaction
+        R = Qf  # dot matrix
+    else:
+        # index of d where di will be added
+        ii = np.where(np.array(d) != "0")[0].tolist()
 
-    # Convert to array(ix1)
-    dy = np.array(d).reshape(-1, 1)
-    print(f"Nodal Displacement, [d] : d1, θ1, d2, θ2, ...:")
+        # added di to displacement d-matrix
+        for i in range(len(ii)):
+            d[ii[i]] = di[i][0]
+
+        # Convert to array(ix1)
+        dy = np.array(d).reshape(-1, 1)
+
+        # Calculated nodal reaction
+        R = np.dot(K, dy) + Qf  # dot matrix
+
+    print(f"[CALCULATE] Nodal Displacement, [d] : d1, θ1, d2, θ2, ...:")
     print(f"{dy} m, radian, m, radian,...")
 
-    # Calculated nodal reaction
-    R = np.dot(K, dy) + Qf  # dot matrix
-
-    print(f"\nExternal Force/Nodal Reaction, [R] : F1, M1, F2, M2, ... :")
+    print(f"\n[CALCULATE] Nodal Force, [R] : F1, M1, F2, M2, ... :")
     print("[R] = [K][d] + [Qf]")
     print(f"{R/1000} kN, kN-m, kN, kN-m,...")
+
     return dy, R
 
 
@@ -496,9 +503,9 @@ def internal_force(dy, b, QF, stretch):
 
 # Calculate shear force values
 def shears(spans, stretch, loads, F):
-    numS, Xt = xi_coordinate(spans, stretch)
+    numS, Xt = xi_coordinate(spans)
     Shears = []
-    for i in range(spans):  # for each stretch
+    for i in range(len(spans)):  # for each stretch
         # Shear like unsupported beams(Internal Shear)
         Q0 = np.zeros(numS)
         for j in range(len(loads[i])):  # consider all the loads of each stretch
@@ -520,7 +527,7 @@ def shears(spans, stretch, loads, F):
     XminQ = []  # locations of the minimum in each stretch
 
     print(f"\nSHEAR")
-    for i in range(spans):
+    for i in range(len(spans)):
         maxQ = max(Shears[i])  # Máximo Shearnte
         minQ = min(Shears[i])  # Mínimo Shearnte
         print(f"Span {i+1} : maxQ = {maxQ/1000:.2f}, minQ = {minQ/1000:.2f} ,kN")
@@ -535,7 +542,7 @@ def shears(spans, stretch, loads, F):
 
     # Shear Force Values for Charts
     DFQ = []
-    for i in range(spans):
+    for i in range(len(spans)):
         # Values for list type DFQ
         # Shear = (Shears[i]).tolist() # We go to kN and we convert to list, N
         Shear = (Shears[i] / 1000).tolist()  # We go to kN and we convert to list, kN
@@ -546,9 +553,9 @@ def shears(spans, stretch, loads, F):
 
 # Calculate bending moment values
 def moments(spans, stretch, loads, F):
-    numS, Xt = xi_coordinate(spans, stretch)
+    numS, Xt = xi_coordinate(spans)
     Moments = []
-    for i in range(spans):  # for each stretch
+    for i in range(len(spans)):  # for each stretch
         # Moments like stretchs simply supported
         M0 = np.zeros(numS)
         for j in range(len(loads[i])):  # consider all the loads of each stretch
@@ -569,7 +576,7 @@ def moments(spans, stretch, loads, F):
     XmaxF = []  # locations of maximum moments by stretch
     XminF = []  # locations of the minimum moments by stretch
     print(f"\nMOMENT")
-    for i in range(spans):
+    for i in range(len(spans)):
         maxF = max(Moments[i])  # Máximo flector
         minF = min(Moments[i])  # Mínimo flector
         print(f"Span {i+1} : maxF = {maxF/1000:.2f}, minF = {minF/1000:.2f} ,kN-m")
@@ -584,76 +591,11 @@ def moments(spans, stretch, loads, F):
 
     # Bending moment values for graphs
     DMF = []
-    for i in range(spans):
+    for i in range(len(spans)):
         Flex = (-1 * Moments[i] / 1000).tolist()  # ***
         DMF += Flex
 
     return DMF, maxMoment, minMoment, XmaxF, XminF
-
-
-def calculate_gradients(moments, X_total):
-    gradients = np.gradient(moments, X_total)
-    return gradients
-
-
-# Define the function to find turning points
-def find_turning_points(gradients, X_total):
-    zero_crossings = np.where(np.diff(np.sign(gradients)))[0]
-    turning_points = X_total[zero_crossings]
-    print(f"Turning points : {np.array(turning_points)}")
-    return turning_points
-
-
-# Calculate deflection values
-def deflections(moments, stretch):
-    spans = len(stretch)
-    total_length = sum([s.L for s in stretch])
-    numS, Xt = xi_coordinate(spans, stretch)
-
-    X_total = np.concatenate(Xt) + np.repeat(
-        np.cumsum([0] + [s.L for s in stretch[:-1]]), numS
-    )
-
-    gradients = calculate_gradients(moments, X_total)
-    turning_points = find_turning_points(gradients, X_total)
-
-    deflection = np.zeros(len(X_total))
-
-    for j in range(1, len(X_total)):
-        xi = X_total[j]
-
-        # Find the nearest turning point before the current xi
-        xt = turning_points[turning_points <= xi]
-        if len(xt) == 0:
-            xt = 0
-        else:
-            xt = xt[-1]
-
-        if xi <= xt:
-            if gradients[j] >= 0:
-                deflection[j] = np.trapz(moments[: j + 1], X_total[: j + 1])
-            else:
-                deflection[j] = np.trapz(moments[: j + 1], X_total[: j + 1])
-        else:
-            if gradients[j] < 0:
-                deflection[j] = np.trapz(
-                    moments[: np.where(X_total == xt)[0][0] + 1],
-                    X_total[: np.where(X_total == xt)[0][0] + 1],
-                ) - np.trapz(
-                    moments[np.where(X_total == xt)[0][0] : j + 1],
-                    X_total[np.where(X_total == xt)[0][0] : j + 1],
-                )
-            else:
-                deflection[j] = np.trapz(
-                    moments[: np.where(X_total == xt)[0][0] + 1],
-                    X_total[: np.where(X_total == xt)[0][0] + 1],
-                ) - np.trapz(
-                    moments[np.where(X_total == xt)[0][0] : j + 1],
-                    X_total[np.where(X_total == xt)[0][0] : j + 1],
-                )
-
-        deflection[j] = -1 * deflection[j] * 1e-5
-    return deflection
 
 
 # =========================================================================================
@@ -667,17 +609,17 @@ def main(E, I, spans, support_type, loads, R0):
     loads : list of loads
     R0 : list of nodal external loads
     """
-    print("PROPERTIES :")
+    print("[INFO]  PROPERTIES :")
     print(f"Es = {E*1e3:.2f} MPa, I = {I*1e8:.2f} cm4")
 
     # ----------------------------------------------------
-    print(f"\nGEOMETRY :")
+    print(f"\n[INFO] GEOMETRY :")
     # Define length of each span
     for i in range(len(spans)):
         print(f"Span {i+1} : {spans[i]:.2f} m")
 
     # ----------------------------------------------------
-    print(f"\nSUPPORT :")
+    print(f"\n[INFO] SUPPORT :")
     support = {
         "0": "Embedement",
         "1": "Allows vertical scroll",
@@ -691,7 +633,7 @@ def main(E, I, spans, support_type, loads, R0):
         print(f"Support {i+1} = {support.get(str(support_type[i]))}")
 
     # ----------------------------------------------------
-    print(f"\nNODAL EXTERNAL FORCE, Ro :")
+    print(f"\n[INFO] NODAL EXTERNAL FORCE, Ro :")
     # Define known/unknown vector of external force/reaction (+Up, -Down)
     # R0 = ['F1y', 'M1', 'F2y', 'M2', 'F3y', 'M3',...]
     # ex. R0 = [0, 0, 0, 0, 0, 0] #N, N-m
@@ -699,7 +641,7 @@ def main(E, I, spans, support_type, loads, R0):
     print(f"[Ro] = {R0}  N, N-m...")
 
     # ----------------------------------------------------
-    print(f"\nBERNOULLI BEAM :")
+    print(f"\n[INFO] BERNOULLI BEAM :")
     # Define the stretchs of the continuous beam in a list
     # BeamB(Elasticity, Inertia, Length) for each stretch
     stretch = []
@@ -710,7 +652,7 @@ def main(E, I, spans, support_type, loads, R0):
         stretch.append(st)
 
     # ----------------------------------------------------
-    print(f"\nLOAD:")
+    print(f"\n[INFO] LOAD:")
     # Define loads in each stretch
     """
     q = DistributedLoad (value, start, length), distance between the left end of the span and the start of the load, Down+ Up-
@@ -735,13 +677,13 @@ def main(E, I, spans, support_type, loads, R0):
         Ltotal += stretch[i].L
 
     # ----------------------------------------------------
-    print(f"\nCALCULATION :")
+    ## Calculationa
     # Assembly Global Stiffness, K
-    K = global_stiffness(nodes, num_of_spans, stretch)
+    K = global_stiffness(nodes, spans, stretch)
 
     # Calculate and assembly Fixed End Force (FEF)
     QF = local_FEF(num_of_spans, loads, stretch)
-    Qf = global_FEF(nodes, num_of_spans, QF)
+    Qf = global_FEF(nodes, spans, QF)
 
     # Create displacement matrix & reaction matrix
     Ro = nodal_external_force(support_type, R0)  # list
@@ -750,7 +692,7 @@ def main(E, I, spans, support_type, loads, R0):
     # Calculate unknown displacement
     di = displacement(d, K, Qf, Ro)
 
-    print(f"\nMerge displacement and calculate reaction :")
+    print(f"\nCalculated Nodal Force and Displacement")
     dy, R = reaction(d, di, K, Qf)
 
     # Calculate local displacement and local force
@@ -758,22 +700,21 @@ def main(E, I, spans, support_type, loads, R0):
 
     # ----------------------------------------------------
     # Calculate shears coordinate for plotting
-    shearDFQ, maxShear, minShear, XmaxQ, XminQ = shears(num_of_spans, stretch, loads, F)
+    shearDFQ, maxShear, minShear, XmaxQ, XminQ = shears(spans, stretch, loads, F)
 
     ###### Calculate moments coordinate for plotting
-    momentDMF, maxMoment, minMoment, XmaxF, XminF = moments(
-        num_of_spans, stretch, loads, F
+    momentDMF, maxMoment, minMoment, XmaxF, XminF = moments(spans, stretch, loads, F)
+
+    deflectionDFQ = deflection(
+        spans, dy.flatten().tolist(), Qf.flatten().tolist(), E, I
     )
 
-    # deflectionDFQ = deflections(momentDMF, stretch)
-
     fig = plot_combined(
-        num_of_spans,
+        spans,
         Ltotal,
         stretch,
         shearDFQ,
         momentDMF,
-        # deflectionDFQ,
         maxShear,
         minShear,
         XmaxQ,
@@ -782,6 +723,7 @@ def main(E, I, spans, support_type, loads, R0):
         minMoment,
         XmaxF,
         XminF,
+        deflectionDFQ,
     )
 
     print(
@@ -806,7 +748,7 @@ I = (1000 * np.power(24, 3)) * 1e-8  # m4
 spans = [3, 3, 3, 3, 3]
 
 # fixd=0, vert-scroll=1, pin=2, free=3
-support = [2, 0, 0, 0, 0, 2]
+support = [0, 0, 0, 0, 0, 0]
 
 
 R0 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
