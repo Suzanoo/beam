@@ -5,6 +5,8 @@ import numpy as np
 from shear import ShearCapacity
 from rebar import Rebar
 
+rebar = Rebar
+
 
 class Torsion:
     def __init__(self, fc, fv, fy, fyv, fyt, Vu, Tu):
@@ -38,7 +40,7 @@ class Torsion:
         q = (self.Tu / (bw * d)) * 1e1  # N/mm2
         τ = (self.Tu / (2 * self.Ao * self.t)) * 1e3  # stress : MPa
 
-        print(f"\nThin-wall Tube & Space Truss Analogy : ")
+        print(f"Thin-wall Tube & Space Truss Analogy : ")
 
         print(f"Enclose Area, Aoh = {self.Aoh:.2f} cm2")
         print(f"Perimeter, Ph = {self.Ph:.2f} cm")
@@ -124,6 +126,8 @@ class Torsion:
             ask = input(f"\nSelect diameter again : Y/N : ").upper()
             if ask == "N":
                 s = int(input(f"Please provide spacing in cm : "))
+                self.new_traverse = dia
+                self.new_spacing = s
                 break
             else:
                 pass
@@ -152,3 +156,43 @@ class Torsion:
         ) * 1e-2  # cm2
 
         return max(Al, Almin)
+
+    def design(self, b, h, c, d, As_main, dia_trav, Vu, Tu):
+        # Torsion reinf
+        if Tu != 0:
+
+            print(f"\n[INFO] : LONGITUDINAL REINF.")
+
+            Acp = b * h
+            Pcp = 2 * (b + h)
+
+            torsion = Torsion(self.fc, self.fv, self.fy, self.fv, self.fy, Vu, Tu)
+
+            torsion.section_properties(b, h, c, d, dia_trav)
+
+            torsion.condition(Acp, Pcp)
+            torsion.section(b, d)
+
+            # New traverse
+            torsion.traverse(b)
+
+            # Long-reinforcment
+            Al = torsion.longitudinal_reinf(b, Acp)
+            print(Al)
+
+            print(f"\nFor Each Side : ")
+            no_of_long_rebar, long_reinf_dia, long_reinf_area = rebar.rebar_design(Al)
+
+            # Merge flexural and torsion reinf.
+            print(f"\nModify Main Reinforcement : ")
+            As = As_main + Al / 4
+            no_of_main, main_dia, new_As = rebar.rebar_design(As)
+
+            return (
+                no_of_main,
+                main_dia,
+                self.new_traverse,
+                self.new_spacing,
+                no_of_long_rebar / 2,  # 2 sides of section
+                long_reinf_dia,
+            )

@@ -137,27 +137,20 @@ class Beam:
 
     # 10) Calculate traverse spacing
     def traverse_trial(self, d, Vu):
-        print("[INFO] Traverse)")
-        while True:
-            dia, As = self.rebar.rebar_selected()
 
-            traverse = ShearReinforcement(self.fc, self.fv, self.fy)
+        dia, As = self.rebar.rebar_selected()
 
-            Av = 2 * As  # cm2
+        traverse = ShearReinforcement(self.fc, self.fv, self.fy)
 
-            s_req, s_max = traverse.beamTraverse(self.b, d, Av, Vu)
+        Av = 2 * As  # cm2
 
-            ask = input(f"\nSelect traverse again : Y/N : ").upper()
-            if ask == "N":
-                s = float(
-                    input(
-                        f"s_req = {s_req:.2f} cm, s_max = {s_max:.2f} cm, Please select spacing : "
-                    )
-                )
-                break
-            else:
-                pass
+        s_req, s_max = traverse.beamTraverse(self.b, d, Av, Vu)
 
+        s = float(
+            input(
+                f"s_req = {s_req:.2f} cm, s_max = {s_max:.2f} cm, Please select spacing : "
+            )
+        )
         print(f"Traverse:  ø-{dia} mm @ {s} cm")
         return int(dia), Av, s
 
@@ -168,7 +161,7 @@ class Beam:
         if double reinf. --> data = [fs, As_major, As_minor]
         if single reinf. --> data = [As_major]
         """
-        print(f"\nMain Reinforcement)")
+
         while True:
             # Double Reinforcement
             # Decision for compression steel if it's not yeild
@@ -209,13 +202,24 @@ class Beam:
 
     # main reinf
     def main_design(self, data):
-        # logging.info(f"[INFO] : MAIN REINFORCEMENT")
-        N, dia, As_assign = self.main_trial(data)
+        print(f"\n[INFO] Main Reinforcement)")
+        while True:
+            N, dia, As_assign = self.main_trial(data)
+            ask = input("Try again! : Y/N : ").upper()
+            if ask == "Y":
+                pass
+            else:
+                break
         return N, dia, As_assign
 
     # traverse
     def traverse_design(self, d, Vu):
-        print("")
-        # logging.info(f"[INFO] : TRAVERSE")
-        dia, Av, s = self.traverse_trial(d, Vu)
+        print(f"\n[INFO] Traverse)")
+        while True:
+            dia, Av, s = self.traverse_trial(d, Vu)
+            ask = input("Try again! : Y/N : ").upper()
+            if ask == "Y":
+                pass
+            else:
+                break
         return dia, Av, s

@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 
 from absl import app, flags
@@ -26,9 +27,9 @@ flags.DEFINE_integer("main", 12, "initial main bar definition, mm")
 flags.DEFINE_integer("trav", 6, "initial traverse bar definition, mm")
 flags.DEFINE_float("b", 0, "beam width, cm")
 flags.DEFINE_float("h", 0, "beam heigth, cm")
-flags.DEFINE_float("Mu", 0, "Moment, kN-m")
-flags.DEFINE_float("Vu", 0, "Shear, kN")
-flags.DEFINE_float("Tu", 0, "Torsion, kN-m")
+# flags.DEFINE_float("Mu", 0, "Moment, kN-m")
+# flags.DEFINE_float("Vu", 0, "Shear, kN")
+# flags.DEFINE_float("Tu", 0, "Torsion, kN-m")
 
 Es = 2e5  # MPa
 𝜙b = 0.9
@@ -61,7 +62,9 @@ def main(_argv):
     # --------------------------------
     ## Aanalysis
     # --------------------------------
-    ask = input(f"\nExecute beam analysis to display SFD and BMD! Y|N :").upper()
+    ask = input(
+        f"\nDo you want to xecute beam analysis to display SFD and BMD! Y|N :"
+    ).upper()
     if ask == "Y":
         analysis = Analysis()
         I = (1 / 12) * FLAGS.b * (FLAGS.h**3)  # cm4
@@ -77,6 +80,8 @@ def main(_argv):
     N = []
     main_reinf = []
     traverse_reinf = []
+    middle_reinf = []
+    no_of_middle_rebars = []
     spacing = []
     n = 1
 
@@ -90,6 +95,7 @@ def main(_argv):
         print(f"\n--------------- SECTION-{n} -----------------")
         Mu = float(input("Define Mu in kN-m : "))
         Vu = float(input("Define Vu in kN : "))
+        Tu = float(input("Define Tu in kN-m : "))
 
         # Check classification
         classify = beam.classification(Mu, 𝜙Mn1)
@@ -103,11 +109,49 @@ def main(_argv):
         # Design traverse
         traverse_dia, Av, s = beam.traverse_design(d, Vu)
 
-        # Collect for plotting
+        # Design longitudinal reinforcement
+        if Tu != 0:
+
+            Acp = FLAGS.b * FLAGS.h
+            Pcp = 2 * (FLAGS.b + FLAGS.h)
+
+            torsion = Torsion(FLAGS.fc, FLAGS.fv, FLAGS.fy, FLAGS.fv, FLAGS.fy, Vu, Tu)
+
+            (
+                no_of_main,
+                new_main_dia,
+                new_traverse,
+                new_spacing,
+                no_of_long_rebar,
+                long_reinf_dia,
+            ) = torsion.design(
+                FLAGS.b, FLAGS.h, FLAGS.c, d, As_main, traverse_dia, Vu, Tu
+            )
+
+            # Collect for plotting if Torsion
+            N.append(no_of_main)
+            main_reinf.append(new_main_dia)
+            traverse_reinf.append(new_traverse)
+            spacing.append(new_spacing)
+            no_of_middle_rebars.append(no_of_long_rebar)
+            middle_reinf.append(long_reinf_dia)
+
+        # Collect for plotting if no Torsion
         N.append(no)
         main_reinf.append(main_dia)
         traverse_reinf.append(traverse_dia)
         spacing.append(s)
+        middle_reinf.append(0)
+        no_of_middle_rebars.append(0)
+
+        #
+        print(f"\n[REINF.] : ")
+        print(f"Main reinforcement : {np.array(main_reinf)}")
+        print(f"No.of Main reinforcement : {np.array(N)}")
+        print(f"Traverse reinforcement : {np.array(traverse_reinf)}")
+        print(f"Traverse spacing : {np.array(spacing)}")
+        print(f"Horizontal reinforcement : {np.array(middle_reinf)}")
+        print(f"No. of Horizontal reinforcement : {np.array(no_of_middle_rebars)}")
 
         ask = input("Design another section! Y|N :").upper()
         if ask == "Y":
@@ -116,7 +160,7 @@ def main(_argv):
             break
 
     # Rebars in each layer
-    bottom_layer, top_layer, middle_layer = rebar.rebar_laying(n)
+    bottom_layer, top_layer = rebar.rebar_laying(n)
 
     create_html(
         fig,
@@ -124,43 +168,13 @@ def main(_argv):
         FLAGS.b,
         FLAGS.h,
         FLAGS.c,
-        traverse_reinf,
         main_reinf,
+        traverse_reinf,
+        middle_reinf,
         bottom_layer,
         top_layer,
-        middle_layer,
+        no_of_middle_rebars,
     )
-
-    # Torsion reinf
-    # if FLAGS.Tu != 0:
-    #     print("")
-    #     logging.info(f"[INFO] : TORSION")
-
-    #     Acp = FLAGS.b * FLAGS.h
-    #     Pcp = 2 * (FLAGS.b + FLAGS.h)
-
-    #     torsion = Torsion(
-    #         FLAGS.fc, FLAGS.fv, FLAGS.fy, FLAGS.fv, FLAGS.fy, FLAGS.Vu, FLAGS.Tu
-    #     )
-
-    #     torsion.section_properties(FLAGS.b, FLAGS.h, FLAGS.c, d, dia_trav)
-
-    #     torsion.condition(Acp, Pcp)
-    #     torsion.section(FLAGS.b, d)
-
-    #     # New traverse
-    #     torsion.traverse(FLAGS.b)
-
-    #     # Long-reinforcment
-    #     Al = torsion.longitudinal_reinf(FLAGS.b, Acp)
-
-    #     print(f"\nFor Each Side : ")
-    #     rebar.rebar_design(Al / 4)
-
-    #     # Merge flexural and torsion reinf.
-    #     print(f"\nModify Main Reinforcement : ")
-    #     As = As_main + Al / 4
-    #     dia_main, As_main = rebar.rebar_design(As)
 
     # TODO Development Length
     # print(f"\nDevelopment Length : ")

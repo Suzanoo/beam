@@ -157,6 +157,8 @@ class ShearReinforcement:
                 print(
                     f"[INFO] Horizontal reinforcement: ø-{horizontal_dia} mm @ {s2} cm"
                 )
+                N = int((np.ceil(d / s2) - 1) * 2)
+                print()
                 break
             else:
                 print("Select again !!!")
@@ -171,4 +173,4 @@ class ShearReinforcement:
             )
             * 1e-1
         )  # kN
-        return traverse_dia, s, horizontal_dia, s2, 𝜙Vs
+        return traverse_dia, s, horizontal_dia, s2, N, 𝜙Vs

@@ -40,7 +40,7 @@ class Rebar:
             N = int(input("Quantities N = ? : "))
 
             if N * A > As:
-                print(f"[INFO] Main Reinforcment : {N} - ø{dia} mm = {N * A:.2f} cm2")
+                print(f"Reinforcment : {N} - ø{dia} mm = {N * A:.2f} cm2")
                 return N, dia, N * A
             else:
                 print(
@@ -51,7 +51,7 @@ class Rebar:
         # Rebars in each layer
         bottom_layer = []
         top_layer = []
-        no_of_middle_rebars = []
+        # no_of_middle_rebars = []
 
         print(f"\nYou have {n} section. Next is to laying  :  ")
         ask = input("Do you want to change number of section to display  ! Y|N : ")
@@ -65,14 +65,14 @@ class Rebar:
             top = convert_input_to_list(
                 input(f"Section-{i+1}, Lay rebars in top layer, ex. 3 2 : ")
             )
-            middle = int(
-                input(
-                    f"Section-{i+1}, How many middle rebar? Even numbers only, ex. 4 : "
-                )
-            )
+            # middle = int(
+            #     input(
+            #         f"Section-{i+1}, How many middle rebar? Even numbers only, ex. 4 : "
+            #     )
+            # )
             # TODO check middle is even number
             bottom_layer.append(bott)
             top_layer.append(top)
-            no_of_middle_rebars.append(middle)
+            # no_of_middle_rebars.append(middle)
 
-        return bottom_layer, top_layer, no_of_middle_rebars
+        return bottom_layer, top_layer

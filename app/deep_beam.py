@@ -73,11 +73,25 @@ def main(_argv):
     print(f"\nGEOMETRY")
     print(f"b = {FLAGS.b} cm, h = {FLAGS.h} cm,l = {FLAGS.l} m")
 
+    # Deep beam or NOT!
+    if (FLAGS.h / FLAGS.l * 1e2) > (2 / 5):
+        print(
+            f"\n[WARNING!] h/ln > 2/5, Not a deep beaml, please use beam_design.py instead or revise your section! "
+        )
+        return
+
     # Instanciate
     beam = Beam(fc=FLAGS.fc, fy=FLAGS.fy, fv=FLAGS.fv, c=FLAGS.c)
     beam.section_properties(FLAGS.main, FLAGS.trav, FLAGS.b, FLAGS.h)
     d, d1 = beam.eff_depth()
     𝜙Mn1 = beam.capacity(d)
+
+    # Max.shear capacity check for section
+    if ln / d > 5:
+        print(
+            f"\n[WARNING!] ln / d > 5, max.shear capacity meet critical, please revise your section!"
+        )
+        return
 
     # --------------------------------
     ## Aanalysis
@@ -102,8 +116,8 @@ def main(_argv):
     main_reinf = []
     traverse_reinf = []
     middle_reinf = []
+    no_of_middle_rebars = []
     spacing = []
-    h_spacing = []
     n = 1
 
     ln = FLAGS.l * 100 - (2 * d)  # cm
@@ -113,81 +127,75 @@ def main(_argv):
     df = pd.read_csv(table)
     display_df(df)
 
-    if ln / d > 5:
-        print(f"\n[WARNING!] ln / d > 5, please revise your section and try agian!")
-        return
+    while True:
+        print(f"\n--------------- SECTION-{n} -----------------")
+        Mu = float(input("Define Mu in kN-m : "))
+        Vu = float(input("Define Vu in kN : "))
 
-    else:
-        while True:
-            print(f"\n--------------- SECTION-{n} -----------------")
-            Mu = float(input("Define Mu in kN-m : "))
-            Vu = float(input("Define Vu in kN : "))
+        # --------------------------------
+        ## Main reinforcement
+        # --------------------------------
+        # Check classification
+        classify = beam.classification(Mu, 𝜙Mn1)
 
-            # --------------------------------
-            ## Main reinforcement
-            # --------------------------------
-            # Check classification
-            classify = beam.classification(Mu, 𝜙Mn1)
+        # Main bar required
+        data = beam.mainbar_req(d, d1, 𝜙Mn1, Mu, classify)
 
-            # Main bar required
-            data = beam.mainbar_req(d, d1, 𝜙Mn1, Mu, classify)
+        # Design main reinf
+        no, main_dia, As_main = beam.main_design(data)
 
-            # Design main reinf
-            no, main_dia, As_main = beam.main_design(data)
+        # Design traverse
+        # traverse_dia, Av, s = beam.traverse_design(d, Vu)
 
-            # Design traverse
-            # traverse_dia, Av, s = beam.traverse_design(d, Vu)
+        # --------------------------------
+        ## Traverse and Horizontal reinforcement
+        # --------------------------------
+        # Traverse
+        shearCapacity = ShearCapacity(FLAGS.fc, FLAGS.fv)
+        𝜙Vc = shearCapacity.flexural_shear(FLAGS.b, d)
 
-            # --------------------------------
-            ## Traverse and Horizontal reinforcement
-            # --------------------------------
-            # Traverse
-            shearCapacity = ShearCapacity(FLAGS.fc, FLAGS.fv)
-            𝜙Vc = shearCapacity.flexural_shear(FLAGS.b, d)
+        # Horizontal
+        shearReinf = ShearReinforcement(FLAGS.fc, FLAGS.fv, FLAGS.fy)
+        traverse_dia, s, horizontal_dia, s2, n2, 𝜙Vs = shearReinf.deepBeam(
+            FLAGS.b, d, ln
+        )
 
-            # Horizontal
-            shearReinf = ShearReinforcement(FLAGS.fc, FLAGS.fv, FLAGS.fy)
-            traverse_dia, s, horizontal_dia, s2, 𝜙Vs = shearReinf.deepBeam(
-                FLAGS.b, d, ln
+        # Check condition of 𝜙Vn
+        𝜙Vn = 𝜙Vc + 𝜙Vs
+        𝜙Vnmax = max_shear_capacity(ln, d)
+
+        if 𝜙Vn <= 𝜙Vnmax:
+            print(
+                f"\n𝜙Vc = {𝜙Vc:.2f} kN, 𝜙Vs = {𝜙Vs:.2f} kN, 𝜙Vn = {𝜙Vn:.2f} kN, 𝜙Vnmax = {𝜙Vnmax:.2f} kN,"
             )
+            print(f"SECTION OK")
+        else:
+            print(f"𝜙Vn > 𝜙Vnmax, SECTION IS NOT OK, Try again!!")
 
-            # Check condition of 𝜙Vn
-            𝜙Vn = 𝜙Vc + 𝜙Vs
-            𝜙Vnmax = max_shear_capacity(ln, d)
+        # Collect for plotting
+        N.append(no)
+        main_reinf.append(main_dia)
+        traverse_reinf.append(traverse_dia)
+        middle_reinf.append(horizontal_dia)
+        spacing.append(s)
+        no_of_middle_rebars.append(n2)
 
-            if 𝜙Vn <= 𝜙Vnmax:
-                print(
-                    f"\n𝜙Vc = {𝜙Vc:.2f} kN, 𝜙Vs = {𝜙Vs:.2f} kN, 𝜙Vn = {𝜙Vn:.2f} kN, 𝜙Vnmax = {𝜙Vnmax:.2f} kN,"
-                )
-                print(f"SECTION OK")
-            else:
-                print(f"𝜙Vn > 𝜙Vnmax, SECTION IS NOT OK, Try again!!")
+        print(f"\n[REINF.] : ")
+        print(f"Main reinforcement : {np.array(main_reinf)}")
+        print(f"No.of Main reinforcement : {np.array(N)}")
+        print(f"Traverse reinforcement : {np.array(traverse_reinf)}")
+        print(f"Traverse spacing : {np.array(s)}")
+        print(f"Horizontal reinforcement : {np.array(middle_reinf)}")
+        print(f"No. of Horizontal reinforcement : {np.array(no_of_middle_rebars)}")
 
-            # Collect for plotting
-            N.append(no)
-            main_reinf.append(main_dia)
-            traverse_reinf.append(traverse_dia)
-            middle_reinf.append(horizontal_dia)
-            spacing.append(s)
-            h_spacing(s2)
+        ask = input("Design another section! Y|N :").upper()
+        if ask == "Y":
+            n += n
+        else:
+            break
 
-            print(f"\n[REINF.] : ")
-            print(f"Main reinforcement : {np.array(main_reinf)}")
-            print(f"No.of Main reinforcement : {np.array(N)}")
-            print(f"Traverse reinforcement : {np.array(traverse_reinf)}")
-            print(f"Traverse spacing : {np.array(s)}")
-            print(f"Horizontal reinforcement : {np.array(middle_reinf)}")
-            print(f"Horizontal reinforcement : {np.array(h_spacing)}")
-
-            ask = input("Design another section! Y|N :").upper()
-            if ask == "Y":
-                n += n
-            else:
-                break
-
-    #
-
-    bottom_layer, top_layer, no_of_middle_rebars = rebar.rebar_laying(n)
+    # Plot section
+    bottom_layer, top_layer = rebar.rebar_laying(n)
     create_html(
         fig,
         n,
@@ -209,7 +217,7 @@ if __name__ == "__main__":
 """
     % cd <path to project directory>
     % conda activate <your conda env name>
-    % python app/deep_beam.py --b=35 --h=100 --l=4 
+    % python app/deep_beam.py --b=20 --h=40 --l=4 
     % python app/deep_beam.py --fc=24 --fy=395 --b=35 --h=100 --l=4
 
 """
