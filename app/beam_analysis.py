@@ -26,31 +26,32 @@ class Analysis:
 
     def spans_length(self):
         N = get_valid_integer("How many span? : ")
+        spans = get_valid_list_input("Define array of spans in meters, ex 4 4 5: ", N)
 
-        while True:
-            while True:
-                try:
-                    spans = get_valid_list_input(
-                        "Define array of spans in meters, ex 4 4 5: "
-                    )
+        # while True:
+        #     while True:
+        #         try:
+        #             spans = get_valid_list_input(
+        #                 "Define array of spans in meters, ex 4 4 5: "
+        #             )
 
-                    if spans.size == N:
-                        print(f"spans = {spans}")
-                        break
-                    else:
-                        print(
-                            f"You need to define exactly {N} spans. You provided {spans.size}. Try again."
-                        )
-                except ValueError as e:
-                    print(f"Input error: {e}. Please try again.")
-                except Exception as e:
-                    print(f"Unexpected error: {e}. Please try again.")
+        #             if spans.size == N:
+        #                 print(f"spans = {spans}")
+        #                 break
+        #             else:
+        #                 print(
+        #                     f"You need to define exactly {N} spans. You provided {spans.size}. Try again."
+        #                 )
+        #         except ValueError as e:
+        #             print(f"Input error: {e}. Please try again.")
+        #         except Exception as e:
+        #             print(f"Unexpected error: {e}. Please try again.")
 
-            ask = input("Try again! Y|N : ").upper()
-            if ask == "Y":
-                pass
-            else:
-                break
+        #     ask = input("Try again! Y|N : ").upper()
+        #     if ask == "Y":
+        #         pass
+        #     else:
+        #         break
 
         self.spans = spans.tolist()
 

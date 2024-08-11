@@ -27,9 +27,6 @@ flags.DEFINE_integer("main", 12, "initial main bar definition, mm")
 flags.DEFINE_integer("trav", 6, "initial traverse bar definition, mm")
 flags.DEFINE_float("b", 0, "beam width, cm")
 flags.DEFINE_float("h", 0, "beam heigth, cm")
-# flags.DEFINE_float("Mu", 0, "Moment, kN-m")
-# flags.DEFINE_float("Vu", 0, "Shear, kN")
-# flags.DEFINE_float("Tu", 0, "Torsion, kN-m")
 
 Es = 2e5  # MPa
 𝜙b = 0.9
@@ -54,10 +51,12 @@ def main(_argv):
     print(f"b = {FLAGS.b} cm, h = {FLAGS.h} cm,")
 
     # instanciate
+    # Instanciate
     beam = Beam(fc=FLAGS.fc, fy=FLAGS.fy, fv=FLAGS.fv, c=FLAGS.c)
+
     beam.section_properties(FLAGS.main, FLAGS.trav, FLAGS.b, FLAGS.h)
     d, d1 = beam.eff_depth()
-    𝜙Mn1 = beam.capacity(d)
+    beam.capacity()
 
     # --------------------------------
     ## Aanalysis
@@ -93,21 +92,21 @@ def main(_argv):
     # Design reinforce
     while True:
         print(f"\n--------------- SECTION-{n} -----------------")
-        Mu = float(input("Define Mu in kN-m : "))
-        Vu = float(input("Define Vu in kN : "))
-        Tu = float(input("Define Tu in kN-m : "))
+        Mu = float(input("Define Mmoment, Mu in kN-m : "))
+        Vu = float(input("Define Shear, Vu in kN : "))
+        Tu = float(input("Define Torsion, Tu in kN-m : "))
 
         # Check classification
-        classify = beam.classification(Mu, 𝜙Mn1)
+        beam.classification(Mu)
 
         # Main bar required
-        data = beam.mainbar_req(d, d1, 𝜙Mn1, Mu, classify)
+        beam.mainbar_req(Mu)
 
         # Design main reinf
-        no, main_dia, As_main = beam.main_design(data)
+        no, main_dia, As_main = beam.main_design()
 
         # Design traverse
-        traverse_dia, Av, s = beam.traverse_design(d, Vu)
+        traverse_dia, Av, s = beam.traverse_design(Vu)
 
         # Design longitudinal reinforcement
         if Tu != 0:
@@ -188,9 +187,6 @@ if __name__ == "__main__":
     app.run(main)
 
 """
-How to used?
--Please see FLAGS definition for alternative
--Make sure you are in the project directory 
 -run script
     % cd <path to project directory>
     % conda activate <your conda env name>

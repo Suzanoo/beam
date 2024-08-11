@@ -82,9 +82,10 @@ def main(_argv):
 
     # Instanciate
     beam = Beam(fc=FLAGS.fc, fy=FLAGS.fy, fv=FLAGS.fv, c=FLAGS.c)
+
     beam.section_properties(FLAGS.main, FLAGS.trav, FLAGS.b, FLAGS.h)
     d, d1 = beam.eff_depth()
-    𝜙Mn1 = beam.capacity(d)
+    beam.capacity()
 
     # Max.shear capacity check for section
     if ln / d > 5:
@@ -136,13 +137,13 @@ def main(_argv):
         ## Main reinforcement
         # --------------------------------
         # Check classification
-        classify = beam.classification(Mu, 𝜙Mn1)
+        beam.classification(Mu)
 
         # Main bar required
-        data = beam.mainbar_req(d, d1, 𝜙Mn1, Mu, classify)
+        beam.mainbar_req(Mu)
 
         # Design main reinf
-        no, main_dia, As_main = beam.main_design(data)
+        no, main_dia, As_main = beam.main_design()
 
         # Design traverse
         # traverse_dia, Av, s = beam.traverse_design(d, Vu)
@@ -217,7 +218,7 @@ if __name__ == "__main__":
 """
     % cd <path to project directory>
     % conda activate <your conda env name>
-    % python app/deep_beam.py --b=20 --h=40 --l=4 
+    % python app/deep_beam.py --b=40 --h=100 --l=5
     % python app/deep_beam.py --fc=24 --fy=395 --b=35 --h=100 --l=4
 
 """

@@ -1,5 +1,11 @@
+import re
 import numpy as np
 from tabulate import tabulate
+
+
+def toNumpy(x):
+    x = re.findall(r"[-+]?(?:\d*\.\d+|\d+)", x)
+    return np.array([float(n) for n in x])
 
 
 def to_numpy(s):
@@ -26,14 +32,22 @@ def get_valid_number(prompt):
             print("Invalid input. Please enter a valid number.")
 
 
-def get_valid_list_input(prompt):
+def get_valid_list_input(prompt, N):
     while True:
         user_input = input(prompt)
         try:
-            array = to_numpy(user_input)
+            array = toNumpy(user_input)
             if len(array) == 0:
                 raise ValueError("No valid numbers found.")
-            return array  # Numpy arrays
+            if len(array) != N:
+                raise ValueError(f"Input length is {len(array)} but must be {N}.")
+
+            confirm = input("Confirm? Y|N: ").strip().upper()
+            if confirm == "Y":
+                return array  # Return the valid numpy array if confirmed
+            else:
+                print("Let's try again.")
+
         except ValueError as e:
             print(
                 f"Invalid input: {e}. Please enter a space-separated list of numbers."
