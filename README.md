@@ -1,7 +1,8 @@
 ## **RC Beam Analysis and Design**
 
 - Before design, the app ask to execute beam analysis feature, it will display shear force diagram(SFD) and bending moment diagram(BMD), it's value use for design reinforcements.
-- If you aready have Mu, Vu you can skip analysis part
+- If you aready have Mu, Vu you can skip analysis part.
+- The app design one-by-one section, each section response by 1 Mu.
 - The deflection use ChatGPT code by cubic interpolation method and remain under developing.
 
 
