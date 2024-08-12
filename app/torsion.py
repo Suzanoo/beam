@@ -1,5 +1,4 @@
 # OOP for Torsion
-
 import numpy as np
 
 from shear import ShearCapacity
@@ -114,7 +113,7 @@ class Torsion:
         Avt_ratio = 2 * self.At_ratio + Av_ratio  # mm2/mm
 
         while True:
-            print(f"\nTraverse Design : ")
+            print(f"\nRe-Design Traverse : ")
             dia, As = self.rebar.rebar_selected()
             Avt = 2 * As * 1e2  # mm2
 
@@ -123,19 +122,19 @@ class Torsion:
 
             print(f"smax = min(s_avt, 3*Avt*fyv/bw, Ph / 8, 30) = {smax:.2f} cm")
 
-            ask = input(f"\nSelect diameter again : Y/N : ").upper()
-            if ask == "N":
+            ask = input(f"\nConfirm! : Y/N : ").upper()
+            if ask == "Y":
                 s = int(input(f"Please provide spacing in cm : "))
-                self.new_traverse = dia
-                self.new_spacing = s
+                new_traverse = dia
+                new_spacing = s
                 break
             else:
                 pass
 
         print(f"[INFO] New Traverse:  𝜙-{dia} mm @ {s} cm")
+        return new_traverse, new_spacing
 
     def longitudinal_reinf(self, bw, Acp, a=45):
-        print(f"\nLongitudinal Reinforcement Design : ")
         bw = bw * 10  # mm
         Acp = Acp * 1e2  # mm2
         Ph = self.Ph * 10  # mm
@@ -174,25 +173,26 @@ class Torsion:
             torsion.section(b, d)
 
             # New traverse
-            torsion.traverse(b)
+            new_traverse, new_spacing = torsion.traverse(b)
 
             # Long-reinforcment
             Al = torsion.longitudinal_reinf(b, Acp)
-            print(Al)
 
-            print(f"\nFor Each Side : ")
-            no_of_long_rebar, long_reinf_dia, long_reinf_area = rebar.rebar_design(Al)
+            print(f"\nLongitudinal reinf. for each side : ")
+            no_of_long_rebar, long_reinf_dia, long_reinf_area = self.rebar.rebar_design(
+                Al
+            )
 
             # Merge flexural and torsion reinf.
-            print(f"\nModify Main Reinforcement : ")
+            print(f"\nMerge flexural and torsion reinf : ")
             As = As_main + Al / 4
-            no_of_main, main_dia, new_As = rebar.rebar_design(As)
+            no_of_main, main_dia, new_As = self.rebar.rebar_design(As)
 
             return (
                 no_of_main,
                 main_dia,
-                self.new_traverse,
-                self.new_spacing,
+                new_traverse,
+                new_spacing,
                 no_of_long_rebar / 2,  # 2 sides of section
                 long_reinf_dia,
             )

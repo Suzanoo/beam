@@ -193,7 +193,7 @@ class Beam:
 
     # 13) main reinf
     def main_design(self):
-        print(f"\n[INFO] Main Reinforcement)")
+        print(f"\n[INFO] Main Reinforcement")
         while True:
             N, dia, As_assign = self.main_trial()
 
@@ -206,9 +206,9 @@ class Beam:
 
     # 14) traverse
     def traverse_design(self, Vu):
-        print(f"\n[INFO] Traverse)")
+        print(f"\n[INFO] Traverse")
         while True:
-            dia, Av, s = self.traverse_trial(self.d, Vu)
+            dia, Av, s = self.traverse_trial(Vu)
             ask = input("Try again! : Y/N : ").upper()
             if ask == "Y":
                 pass
