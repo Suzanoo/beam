@@ -741,7 +741,7 @@ def main(E, I, spans, support_type, loads, R0):
 
 """
 
-"""
+
 E = 200  # GPa
 I = (1000 * np.power(24, 3)) * 1e-8  # m4
 
@@ -776,3 +776,4 @@ if __name__ == "__main__":
 
 
 # python app/diagram.py
+"""

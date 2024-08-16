@@ -5,8 +5,8 @@ import numpy as np
 from absl import app, flags
 from absl.flags import FLAGS
 
-from diagram import DistributedLoad, MomentConcentrated, PointLoad
-import diagram as diagram
+from stiffness_matrix import DistributedLoad, MomentConcentrated, PointLoad
+import stiffness_matrix as stiffness_matrix
 
 from utils import get_valid_integer, get_valid_list_input
 
@@ -219,7 +219,9 @@ class Analysis:
         self.ext_loads()
         self.loads_type()
 
-        fig = diagram.main(E, I, self.spans, self.supports, self.loads, self.R0)
+        fig = stiffness_matrix.main(
+            E, I, self.spans, self.supports, self.loads, self.R0
+        )
         return fig
 
 

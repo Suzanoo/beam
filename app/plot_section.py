@@ -73,7 +73,7 @@ def get_rebar_coordinates(
     return pd.DataFrame(rebar_data)
 
 
-def plot_rc_section(
+def section_fig(
     fig,
     b,
     d,
@@ -153,7 +153,7 @@ def plot_rc_section(
 
     # Calculate positions of middle reinforcement layers
     if no_of_middle_rebars > 0:
-        n = no_of_middle_rebars // 2
+        n = int(no_of_middle_rebars // 2)
         d_middle = min(y_top_layers) - max(y_bottom_layers)
         s = d_middle / (n + 1)
 
@@ -194,36 +194,7 @@ def plot_rc_section(
     return fig
 
 
-def create_one_plot(
-    b,
-    h,
-    covering,
-    main_dia,
-    traverse_dia,
-    middle_dia,
-    bottom_layers,
-    top_layers,
-    no_of_middle_rebars,
-):
-    section_fig = go.Figure()
-    section_fig = plot_rc_section(
-        section_fig,
-        b,
-        h,
-        covering,
-        main_dia / 10,
-        traverse_dia / 10,
-        middle_dia / 10,
-        bottom_layers,
-        top_layers,
-        no_of_middle_rebars,
-    )
-
-    return section_fig
-
-
-def create_html(
-    sfd_bmd_fig,
+def multi_sections(
     N,
     b,
     h,
@@ -235,9 +206,12 @@ def create_html(
     top_layers,
     no_of_middle_rebars,
 ):
-    section_htmls = []
+    sections_fig = []
     for i in range(N):
-        section_fig = create_one_plot(
+        figure = go.Figure()
+
+        fig = section_fig(
+            figure,
             b,
             h,
             covering,
@@ -248,46 +222,59 @@ def create_html(
             top_layers[i],
             no_of_middle_rebars[i],
         )
-        # Save each plot to a string
-        section_html = section_fig.to_html(full_html=False, include_plotlyjs="cdn")
-        section_htmls.append(section_html)
+        sections_fig.append(fig)
 
-    if sfd_bmd_fig != None:
+    return sections_fig
+
+
+def create_html(sfd_bmd_fig, sections_fig):
+    if sfd_bmd_fig is not None:
         sfd_bmd_html = sfd_bmd_fig.to_html(full_html=False, include_plotlyjs="cdn")
     else:
         sfd_bmd_html = "Hello World!"
 
-    print(f"\nCongrate!! Open rectangle_plot.html and do not serious!")
+    # Start building the HTML content
+    html_content = f"""
+    <html>
+        <head>
+            <title>Sections</title>
+            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        </head>
+        <body>
+            <h1>SFD, BMD</h1>
+            <div class="plot-curve">{sfd_bmd_html}</div>
+            <h1>Sections</h1>
+    """
 
-    # Combine all plots into one HTML file
-    with open("rectangle_plot.html", "w") as f:
-        f.write(
-            f"""
-        <html>
-            <head>
-                <title>Rectangle Plot</title>
-                <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-                <style>
-                    .plot-container {{
-                        display: flex;
-                        flex-direction: row;
-                        flex-wrap: wrap;
-                        justify-content: space-around;
-                    }}
-                    .plot-item {{
-                        flex: 0 0 auto;
-                        margin: 10px;
-                    }}
-                </style>
-            </head>
-            <body>
-                <h1>SFD, BMD</h1>
-                <div class="plot-item">{sfd_bmd_html}</div>
-                <h1>Section Plots</h1>
-                <div class="plot-container">
-                    {''.join([f'<div class="plot-item">{plot}</div>' for plot in section_htmls])}
-                </div>
-            </body>
-        </html>
+    # Loop through the list of figures, displaying 4 per row
+    for i in range(len(sections_fig)):
+        if i % 4 == 0:  # Start a new row every 4 sections
+            if i != 0:  # Close the previous row div if it's not the first
+                html_content += "</div>"
+            html_content += """<div class="plot-sections" style="display: flex; justify-content: space-around; margin-bottom: 30px;">"""
+
+        # Convert each figure to HTML
+        section_html = sections_fig[i].to_html(full_html=False, include_plotlyjs=False)
+
+        # Add the section plot to the current row
+        html_content += f"""
+            <div style="width: 23%;">
+                <h2>Section Plot {i + 1}</h2>
+                {section_html}
+            </div>
         """
-        )
+
+    # Close the last row div
+    html_content += "</div>"
+
+    # End the HTML content
+    html_content += """
+        </body>
+    </html>
+    """
+
+    # Write the HTML content to a file
+    with open("rectangle_plot.html", "w") as f:
+        f.write(html_content)
+
+    print("Congrate! Please open rectangle_plot.html in your project folder")

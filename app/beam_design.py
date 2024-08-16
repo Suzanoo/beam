@@ -10,8 +10,8 @@ from torsion import Torsion
 from rebar import Rebar
 from beam_analysis import Analysis
 
-from utils import display_df, convert_input_to_list
-from plot_section import create_html
+from utils import display_df
+from plot_section import multi_sections, create_html
 
 # from rc.devLength import DevLength
 
@@ -69,9 +69,9 @@ def main(_argv):
         I = (1 / 12) * FLAGS.b * (FLAGS.h**3)  # cm4
 
         # spans, supports, loads, R0 = analysis()
-        fig = analysis.analysis(FLAGS.E * 1e-3, I * 1e-8)
+        sfd_bmd_fig = analysis.analysis(FLAGS.E * 1e-3, I * 1e-8)
     else:
-        fig = None
+        sfd_bmd_fig = None
 
     # --------------------------------
     ## Design
@@ -129,16 +129,16 @@ def main(_argv):
 
             # Collect for plotting if Torsion
             N.append(no_of_main)
-            main_reinf.append(new_main_dia)
-            traverse_reinf.append(new_traverse)
+            main_reinf.append(new_main_dia / 10)  # Conver mm to cm
+            traverse_reinf.append(new_traverse / 10)  # Conver mm to cm
             spacing.append(new_spacing)
             no_of_middle_rebars.append(no_of_long_rebar)
-            middle_reinf.append(long_reinf_dia)
+            middle_reinf.append(long_reinf_dia / 10)  # Conver mm to cm
 
         # Collect for plotting if no Torsion
         N.append(no)
-        main_reinf.append(main_dia)
-        traverse_reinf.append(traverse_dia)
+        main_reinf.append(main_dia / 10)  # Conver mm to cm
+        traverse_reinf.append(traverse_dia / 10)  # Conver mm to cm
         spacing.append(s)
         middle_reinf.append(0)
         no_of_middle_rebars.append(0)
@@ -152,17 +152,18 @@ def main(_argv):
         print(f"Horizontal reinforcement : {np.array(middle_reinf)}")
         print(f"No. of Horizontal reinforcement : {np.array(no_of_middle_rebars)}")
 
-        ask = input("Design another section! Y|N :").upper()
+        ask = input(f"\nDesign another section! Y|N :").upper()
         if ask == "Y":
             n += n
         else:
             break
 
     # Rebars in each layer
+    print(f"\n--------------- REBARS LAYING IN SECTION -----------------")
     bottom_layer, top_layer = rebar.rebar_laying(n)
 
-    create_html(
-        fig,
+    # Create section fig.
+    sections_fig = multi_sections(
         n,
         FLAGS.b,
         FLAGS.h,
@@ -174,6 +175,8 @@ def main(_argv):
         top_layer,
         no_of_middle_rebars,
     )
+
+    create_html(sfd_bmd_fig, sections_fig)
 
     # TODO Development Length
     # print(f"\nDevelopment Length : ")
