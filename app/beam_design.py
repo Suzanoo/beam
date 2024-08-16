@@ -62,7 +62,7 @@ def main(_argv):
     ## Aanalysis
     # --------------------------------
     ask = input(
-        f"\nDo you want to xecute beam analysis to display SFD and BMD! Y|N :"
+        f"\nDo you want to run 'beam analysis' to display SFD and BMD! Y|N :"
     ).upper()
     if ask == "Y":
         analysis = Analysis()
@@ -83,6 +83,7 @@ def main(_argv):
     no_of_middle_rebars = []
     spacing = []
     n = 1
+    legend = []
 
     # Display rebar df
     table = os.path.join(CURRENT, "data/Deform_Bar.csv")
@@ -106,7 +107,13 @@ def main(_argv):
         no, main_dia, As_main = beam.main_design()
 
         # Design traverse
-        traverse_dia, Av, s = beam.traverse_design(Vu)
+        traverse_dia, Av, s, label = beam.traverse_design(Vu)
+
+        # PLot tile
+        if label == "Single stirrup":
+            text = f"{no} - ø{main_dia} mm, ø{traverse_dia} mm @ {s} cm"
+        else:
+            text = f"{no} - ø{main_dia} mm, 2 - ø{traverse_dia} mm @ {s} cm"
 
         # Design longitudinal reinforcement
         if Tu != 0:
@@ -121,27 +128,36 @@ def main(_argv):
                 new_main_dia,
                 new_traverse,
                 new_spacing,
+                label,
                 no_of_long_rebar,
                 long_reinf_dia,
             ) = torsion.design(
                 FLAGS.b, FLAGS.h, FLAGS.c, d, As_main, traverse_dia, Vu, Tu
             )
 
+            # New PLot tile
+            if label == "Single stirrup":
+                text = f"{no_of_main} - ø{new_main_dia} mm, ø{new_traverse} mm @ {new_spacing} cm"
+            else:
+                text = f"{no_of_main} - ø{new_main_dia} mm, 2 - ø{new_traverse} mm @ {new_spacing} cm"
+
             # Collect for plotting if Torsion
             N.append(no_of_main)
-            main_reinf.append(new_main_dia / 10)  # Conver mm to cm
-            traverse_reinf.append(new_traverse / 10)  # Conver mm to cm
+            main_reinf.append(new_main_dia)  # Conver mm to cm
+            traverse_reinf.append(new_traverse)  # Conver mm to cm
             spacing.append(new_spacing)
             no_of_middle_rebars.append(no_of_long_rebar)
-            middle_reinf.append(long_reinf_dia / 10)  # Conver mm to cm
-
-        # Collect for plotting if no Torsion
-        N.append(no)
-        main_reinf.append(main_dia / 10)  # Conver mm to cm
-        traverse_reinf.append(traverse_dia / 10)  # Conver mm to cm
-        spacing.append(s)
-        middle_reinf.append(0)
-        no_of_middle_rebars.append(0)
+            middle_reinf.append(long_reinf_dia)  # Conver mm to cm
+            legend.append(text)
+        else:
+            # Collect for plotting if no Torsion
+            N.append(no)
+            main_reinf.append(main_dia)  # Conver mm to cm
+            traverse_reinf.append(traverse_dia)  # Conver mm to cm
+            spacing.append(s)
+            middle_reinf.append(0)
+            no_of_middle_rebars.append(0)
+            legend.append(text)
 
         #
         print(f"\n[REINF.] : ")
@@ -151,6 +167,7 @@ def main(_argv):
         print(f"Traverse spacing : {np.array(spacing)}")
         print(f"Horizontal reinforcement : {np.array(middle_reinf)}")
         print(f"No. of Horizontal reinforcement : {np.array(no_of_middle_rebars)}")
+        print(legend)
 
         ask = input(f"\nDesign another section! Y|N :").upper()
         if ask == "Y":
@@ -160,7 +177,7 @@ def main(_argv):
 
     # Rebars in each layer
     print(f"\n--------------- REBARS LAYING IN SECTION -----------------")
-    bottom_layer, top_layer = rebar.rebar_laying(n)
+    bottom_layer, top_layer = rebar.rebar_laying(n, legend)
 
     # Create section fig.
     sections_fig = multi_sections(
@@ -168,12 +185,17 @@ def main(_argv):
         FLAGS.b,
         FLAGS.h,
         FLAGS.c,
-        main_reinf,
-        traverse_reinf,
-        middle_reinf,
+        (np.array(main_reinf) / 10).tolist(),  # Convert mm to cm and re-convert to list
+        (
+            np.array(traverse_reinf) / 10
+        ).tolist(),  # Convert mm to cm and re-convert to list
+        (
+            np.array(middle_reinf) / 10
+        ).tolist(),  # Convert mm to cm and re-convert to list
         bottom_layer,
         top_layer,
         no_of_middle_rebars,
+        legend,
     )
 
     create_html(sfd_bmd_fig, sections_fig)

@@ -115,14 +115,21 @@ class Torsion:
         while True:
             print(f"\nRe-Design Traverse : ")
             dia, As = self.rebar.rebar_selected()
-            Avt = 2 * As * 1e2  # mm2
+
+            ask = input("Single stirrup or Double stirrup? S|D : ").upper()
+            if ask == "S":
+                Avt = 2 * As * 1e2  # mm2
+                label = "Single stirrup"
+            else:
+                Avt = 4 * As * 1e2  # mm2
+                label = "Double stirrup"
 
             s_avt = (Avt / Avt_ratio) / 10  # cm
             smax = min(s_avt, (3 * Avt * self.fyv / bw) / 10, self.Ph / 8, 30)  # cm
 
             print(f"smax = min(s_avt, 3*Avt*fyv/bw, Ph / 8, 30) = {smax:.2f} cm")
 
-            ask = input(f"\nConfirm! : Y/N : ").upper()
+            ask = input(f"Confirm! : Y/N : ").upper()
             if ask == "Y":
                 s = int(input(f"Please provide spacing in cm : "))
                 new_traverse = dia
@@ -132,7 +139,7 @@ class Torsion:
                 pass
 
         print(f"[INFO] New Traverse:  𝜙-{dia} mm @ {s} cm")
-        return new_traverse, new_spacing
+        return new_traverse, new_spacing, label
 
     def longitudinal_reinf(self, bw, Acp, a=45):
         bw = bw * 10  # mm
@@ -173,7 +180,7 @@ class Torsion:
             torsion.section(b, d)
 
             # New traverse
-            new_traverse, new_spacing = torsion.traverse(b)
+            new_traverse, new_spacing, label = torsion.traverse(b)
 
             # Long-reinforcment
             Al = torsion.longitudinal_reinf(b, Acp)
@@ -193,6 +200,7 @@ class Torsion:
                 main_dia,
                 new_traverse,
                 new_spacing,
+                label,
                 no_of_long_rebar / 2,  # 2 sides of section
                 long_reinf_dia,
             )

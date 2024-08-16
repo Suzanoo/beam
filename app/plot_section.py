@@ -84,6 +84,7 @@ def section_fig(
     bottom_layers,
     top_layers,
     no_of_middle_rebars,
+    legend,
 ):
     # fig = go.Figure()
 
@@ -182,7 +183,7 @@ def section_fig(
     fig.update_xaxes(range=[-5, b + 5], scaleratio=1, zeroline=False)
     fig.update_yaxes(range=[-5, d + 5], scaleratio=1, zeroline=False)
     fig.update_layout(
-        title="RC Beam/Column Section",
+        title=legend,
         xaxis_title="Width (cm)",
         yaxis_title="Depth (cm)",
         height=600,
@@ -205,6 +206,7 @@ def multi_sections(
     bottom_layers,
     top_layers,
     no_of_middle_rebars,
+    legend,
 ):
     sections_fig = []
     for i in range(N):
@@ -221,6 +223,7 @@ def multi_sections(
             bottom_layers[i],
             top_layers[i],
             no_of_middle_rebars[i],
+            legend[i],
         )
         sections_fig.append(fig)
 

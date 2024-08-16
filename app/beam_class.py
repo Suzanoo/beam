@@ -134,7 +134,13 @@ class Beam:
 
         traverse = ShearReinforcement(self.fc, self.fv, self.fy)
 
-        Av = 2 * As  # cm2
+        ask = input("Single stirrup or Double stirrup? S|D : ").upper()
+        if ask == "S":
+            Av = 2 * As  # cm2
+            label = "Single stirrup"
+        else:
+            Av = 4 * As
+            label = "Double stirrup"
 
         s_req, s_max = traverse.beamTraverse(self.b, self.d, Av, Vu)
 
@@ -143,8 +149,9 @@ class Beam:
                 f"s_req = {s_req:.2f} cm, s_max = {s_max:.2f} cm, Please select spacing : "
             )
         )
+
         print(f"Traverse:  ø-{dia} mm @ {s} cm")
-        return int(dia), Av, s
+        return int(dia), Av, s, label
 
     # 11) Design main reinforcements
     def main_trial(self):
@@ -208,10 +215,10 @@ class Beam:
     def traverse_design(self, Vu):
         print(f"\n[INFO] Traverse")
         while True:
-            dia, Av, s = self.traverse_trial(Vu)
+            dia, Av, s, label = self.traverse_trial(Vu)
             ask = input("Try again! : Y/N : ").upper()
             if ask == "Y":
                 pass
             else:
                 break
-        return dia, Av, s
+        return dia, Av, s, label

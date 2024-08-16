@@ -47,24 +47,18 @@ class Rebar:
                     f"As provide : {N} - ø{dia} mm = {N * A:.2f} cm2 < {As:.2f} cm2, Try again!"
                 )
 
-    def rebar_laying(self, n):
+    def rebar_laying(self, n, legend):
         # Rebars in each layer
         bottom_layer = []
         top_layer = []
         # no_of_middle_rebars = []
 
-        print(f"\nYou have {n} section. Next is to laying  :  ")
-        ask = input("Do you want to change number of section to display  ! Y|N : ")
-        if ask == "Y":
-            n = int(input("New n = ? : "))
-
         for i in range(n):
+            print(f"\nSection-{i+1} : {legend[i]}")
             bott = convert_input_to_list(
-                input(f"\nSection-{i+1}, Lay rebars in bottom layer, ex. 3 2 : ")
+                input(f"Lay rebars in bottom layer, ex. 3 2 : ")
             )
-            top = convert_input_to_list(
-                input(f"Section-{i+1}, Lay rebars in top layer, ex. 3 2 : ")
-            )
+            top = convert_input_to_list(input(f"Lay rebars in top layer, ex. 3 2 : "))
             # middle = int(
             #     input(
             #         f"Section-{i+1}, How many middle rebar? Even numbers only, ex. 4 : "
