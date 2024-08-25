@@ -37,7 +37,7 @@ from rebar import Rebar
 from beam_analysis import Analysis
 
 from utils import display_df
-from plot_section import create_html
+from plot_section import multi_sections, create_html
 
 ## Constance
 Es = 2e5  # MPa
@@ -74,25 +74,25 @@ def main(_argv):
     print(f"b = {FLAGS.b} cm, h = {FLAGS.h} cm,l = {FLAGS.l} m")
 
     # Deep beam or NOT!
-    if (FLAGS.h / FLAGS.l * 1e2) > (2 / 5):
-        print(
-            f"\n[WARNING!] h/ln > 2/5, Not a deep beaml, please use beam_design.py instead or revise your section! "
-        )
-        return
+    # if (FLAGS.h / FLAGS.l * 1e2) > (2 / 5):
+    #     print(
+    #         f"\n[WARNING!] h/ln > 2/5, Not a deep beaml, please use beam_design.py instead or revise your section! "
+    #     )
+    #     return
 
     # Instanciate
     beam = Beam(fc=FLAGS.fc, fy=FLAGS.fy, fv=FLAGS.fv, c=FLAGS.c)
 
     beam.section_properties(FLAGS.main, FLAGS.trav, FLAGS.b, FLAGS.h)
-    d, d1 = beam.eff_depth()
+    d, d1 = beam.eff_depth()  # cm
     beam.capacity()
 
     # Max.shear capacity check for section
-    if ln / d > 5:
-        print(
-            f"\n[WARNING!] ln / d > 5, max.shear capacity meet critical, please revise your section!"
-        )
-        return
+    # if (FLAGS.l * 100 / d) > 5:
+    #     print(
+    #         f"\n[WARNING!] ln / d > 5, max.shear capacity meet critical, please revise your section!"
+    #     )
+    #     return
 
     # --------------------------------
     ## Aanalysis
@@ -105,9 +105,9 @@ def main(_argv):
         I = (1 / 12) * FLAGS.b * (FLAGS.h**3)  # cm4
 
         # spans, supports, loads, R0 = analysis()
-        fig = analysis.analysis(FLAGS.E * 1e-3, I * 1e-8)
+        sfd_bmd_fig = analysis.analysis(FLAGS.E * 1e-3, I * 1e-8)
     else:
-        fig = None
+        sfd_bmd_fig = None
 
     # --------------------------------
     ## Design reinforcement
@@ -120,6 +120,7 @@ def main(_argv):
     no_of_middle_rebars = []
     spacing = []
     n = 1
+    legend = []
 
     ln = FLAGS.l * 100 - (2 * d)  # cm
 
@@ -157,9 +158,16 @@ def main(_argv):
 
         # Horizontal
         shearReinf = ShearReinforcement(FLAGS.fc, FLAGS.fv, FLAGS.fy)
-        traverse_dia, s, horizontal_dia, s2, n2, 𝜙Vs = shearReinf.deepBeam(
+
+        traverse_dia, s, horizontal_dia, s2, n2, 𝜙Vs, label = shearReinf.deepBeam(
             FLAGS.b, d, ln
         )
+
+        # PLot tile
+        if label == "Single stirrup":
+            text = f"Main: {no} - ø{main_dia}mm, \nTraverse: ø{traverse_dia}mm @ {s} cm, \nLong.reinf.: ø{horizontal_dia}mm @ {s2} cm"
+        else:
+            text = f"Main: {no} - ø{main_dia}mm, \nTraverse: 2-ø{traverse_dia}mm @ {s} cm, \nLong.reinf.: ø{horizontal_dia}mm @ {s2} cm"
 
         # Check condition of 𝜙Vn
         𝜙Vn = 𝜙Vc + 𝜙Vs
@@ -167,7 +175,7 @@ def main(_argv):
 
         if 𝜙Vn <= 𝜙Vnmax:
             print(
-                f"\n𝜙Vc = {𝜙Vc:.2f} kN, 𝜙Vs = {𝜙Vs:.2f} kN, 𝜙Vn = {𝜙Vn:.2f} kN, 𝜙Vnmax = {𝜙Vnmax:.2f} kN,"
+                f"𝜙Vc = {𝜙Vc:.2f} kN, 𝜙Vs = {𝜙Vs:.2f} kN, 𝜙Vn = {𝜙Vn:.2f} kN, 𝜙Vnmax = {𝜙Vnmax:.2f} kN,"
             )
             print(f"SECTION OK")
         else:
@@ -180,6 +188,7 @@ def main(_argv):
         middle_reinf.append(horizontal_dia)
         spacing.append(s)
         no_of_middle_rebars.append(n2)
+        legend.append(text)
 
         print(f"\n[REINF.] : ")
         print(f"Main reinforcement : {np.array(main_reinf)}")
@@ -187,7 +196,6 @@ def main(_argv):
         print(f"Traverse reinforcement : {np.array(traverse_reinf)}")
         print(f"Traverse spacing : {np.array(s)}")
         print(f"Horizontal reinforcement : {np.array(middle_reinf)}")
-        print(f"No. of Horizontal reinforcement : {np.array(no_of_middle_rebars)}")
 
         ask = input("Design another section! Y|N :").upper()
         if ask == "Y":
@@ -195,21 +203,30 @@ def main(_argv):
         else:
             break
 
-    # Plot section
-    bottom_layer, top_layer = rebar.rebar_laying(n)
-    create_html(
-        fig,
+    # Rebars in each layer
+    print(f"\n--------------- REBARS LAYING IN SECTION -----------------")
+    bottom_layer, top_layer = rebar.rebar_laying(n, legend)
+
+    # Create section fig.
+    sections_fig = multi_sections(
         n,
         FLAGS.b,
         FLAGS.h,
         FLAGS.c,
-        main_reinf,
-        traverse_reinf,
-        middle_reinf,
+        (np.array(main_reinf) / 10).tolist(),  # Convert mm to cm and re-convert to list
+        (
+            np.array(traverse_reinf) / 10
+        ).tolist(),  # Convert mm to cm and re-convert to list
+        (
+            np.array(middle_reinf) / 10
+        ).tolist(),  # Convert mm to cm and re-convert to list
         bottom_layer,
         top_layer,
         no_of_middle_rebars,
+        legend,
     )
+
+    create_html(sfd_bmd_fig, sections_fig)
 
 
 if __name__ == "__main__":
@@ -218,7 +235,7 @@ if __name__ == "__main__":
 """
     % cd <path to project directory>
     % conda activate <your conda env name>
-    % python app/deep_beam.py --b=40 --h=100 --l=5
+    % python app/deep_beam.py --b=60 --h=100 --l=5
     % python app/deep_beam.py --fc=24 --fy=395 --b=35 --h=100 --l=4
 
 """

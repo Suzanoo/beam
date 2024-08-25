@@ -125,13 +125,25 @@ class ShearReinforcement:
             print(f"Av min = {Avmin:.2f} cm2, please select diameter of traverse.")
 
             traverse_dia, Av = rebar.rebar_selected()
-            Av = 2 * Av
+
+            ask = input("Single stirrup or Double stirrup? S|D : ").upper()
+            if ask == "S":
+                Av = 2 * Av  # cm2
+                label = "Single stirrup"
+            else:
+                Av = 4 * Av
+                label = "Double stirrup"
 
             print(f"Av = {Av:.2f} cm2")
 
             if Av >= Avmin:
-                print(f"[INFO] Traverse: ø-{traverse_dia} mm @ {s} cm")
-                break
+
+                ask = input("Try again! : Y/N : ").upper()
+                if ask == "Y":
+                    pass
+                else:
+                    print(f"[INFO] Traverse: ø-{traverse_dia} mm @ {s} cm")
+                    break
             else:
                 print("Select again !!!")
                 pass
@@ -154,12 +166,16 @@ class ShearReinforcement:
             print(f"Avh = {Avh:.2f} cm2")
 
             if Avh >= Avhmin:
-                print(
-                    f"[INFO] Horizontal reinforcement: ø-{horizontal_dia} mm @ {s2} cm"
-                )
-                N = int((np.ceil(d / s2) - 1) * 2)
-                print()
-                break
+
+                ask = input("Try again! : Y/N : ").upper()
+                if ask == "Y":
+                    pass
+                else:
+                    print(
+                        f"[INFO] Horizontal reinforcement: ø-{horizontal_dia} mm @ {s2} cm"
+                    )
+                    N = int((np.ceil(d / s2) - 1) * 2)
+                    break
             else:
                 print("Select again !!!")
                 pass
@@ -173,4 +189,4 @@ class ShearReinforcement:
             )
             * 1e-1
         )  # kN
-        return traverse_dia, s, horizontal_dia, s2, N, 𝜙Vs
+        return traverse_dia, s, horizontal_dia, s2, N, 𝜙Vs, label

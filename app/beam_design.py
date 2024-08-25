@@ -27,6 +27,7 @@ flags.DEFINE_integer("main", 12, "initial main bar definition, mm")
 flags.DEFINE_integer("trav", 6, "initial traverse bar definition, mm")
 flags.DEFINE_float("b", 0, "beam width, cm")
 flags.DEFINE_float("h", 0, "beam heigth, cm")
+flags.DEFINE_float("l", 0, "beam length, m")
 
 Es = 2e5  # MPa
 𝜙b = 0.9
@@ -67,6 +68,8 @@ def main(_argv):
     if ask == "Y":
         analysis = Analysis()
         I = (1 / 12) * FLAGS.b * (FLAGS.h**3)  # cm4
+
+        print(f"Self weigth : {FLAGS.b * FLAGS.h * 2.4*9.81 *1e-4:.2f} kN/m")
 
         # spans, supports, loads, R0 = analysis()
         sfd_bmd_fig = analysis.analysis(FLAGS.E * 1e-3, I * 1e-8)
@@ -216,7 +219,7 @@ if __name__ == "__main__":
     % cd <path to project directory>
     % conda activate <your conda env name>
     % python app/beam_design.py --b=3000 --h=24
-    % python app/beam_design.py --b=40 --h=60
+    % python app/beam_design.py --b=40 --h=60 --l=5
 
     
 """
