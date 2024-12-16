@@ -155,9 +155,11 @@ def plot_combined(
         fig.add_trace(trace, row=2, col=1)
 
     # Add deflection
-
     for trace in deflection_fig["data"]:
         fig.add_trace(trace, row=3, col=1)
+
+    # Hide y-axis values for the deflection plot
+    fig.update_yaxes(visible=False, row=3, col=1)
 
     fig.update_layout(height=800, showlegend=False)
 

@@ -125,13 +125,13 @@ class Analysis:
         # --------------------------------------------------------------------
 
     def loads_type(self):
-        # Define loads in each stretch : unit in --> Newton, N
+        # Define loads in each stretch
         """
         q = DistributedLoad (value, start, length), distance between the left end of the span and the start of the load
         P = PointLoad(value, position), Load position with respect to the left end of the section
         M = MomentConcentrated (value, position),  position of the moment with respect to the left end of the section'
         """
-        print(f"\nDefine loads in each stretch : unit in --> Newton, Newton-meters")
+        print(f"\nDefine loads in each stretch : unit in --> kN, kN-m")
         print(f"You have {len(self.spans)} stretch")
 
         loads = [[] for i in range(0, len(self.spans))]  # [[], [], [],...]

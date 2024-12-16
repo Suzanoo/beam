@@ -43,10 +43,10 @@ class ShearCapacity:
 
 
 class ShearReinforcement:
-    def __init__(self, fc, fv, fy):
-        self.fc = fc  # MPa
-        self.fv = fv  # Mpa SR24
-        self.fy = fy  # MPa
+    def __init__(self, materials):
+        self.fc = materials.fc  # MPa
+        self.fv = materials.fv  # Mpa SR24
+        self.fy = materials.fy  # MPa
         self.𝜙v = 0.85
 
     def beamTraverse(self, b, d, Av, Vu):

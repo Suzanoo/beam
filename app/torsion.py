@@ -113,7 +113,7 @@ class Torsion:
         Avt_ratio = 2 * self.At_ratio + Av_ratio  # mm2/mm
 
         while True:
-            print(f"\nRe-Design Traverse : ")
+            print(f"\n[INFO]: Re-Design Traverse : ")
             dia, As = self.rebar.rebar_selected()
 
             ask = input("Single stirrup or Double stirrup? S|D : ").upper()
