@@ -1,225 +1,148 @@
 import os
-import numpy as np
 import pandas as pd
 
-from absl import app, flags
-from absl.flags import FLAGS
+from beam import (
+    MaterialProperties,
+    SectionGeometry,
+    Reinforcement,
+    Loads,
+    ReinforcementCalculator,
+)
 
-from beam_class import Beam
-from torsion import Torsion
-from rebar import Rebar
 from beam_analysis import Analysis
 
-from utils import display_df
-from plot_section import multi_sections, create_html
+from section_generator import SectionGenerator
 
-# from rc.devLength import DevLength
+from rebar import Rebar
+from shear import ShearReinforcement
+from torsion import Torsion
+from plot import Plot
 
-## FLAGS definition
-# https://stackoverflow.com/questions/69471891/clarification-regarding-abseil-library-flags
-
-flags.DEFINE_float("fc", 24, "240ksc, MPa")
-flags.DEFINE_integer("fy", 390, "SD40 main bar, MPa")
-flags.DEFINE_integer("fv", 235, "SR24 traverse, MPa")
-flags.DEFINE_float("c", 3, "concrete covering, cm")
-
-flags.DEFINE_integer("main", 12, "initial main bar definition, mm")
-flags.DEFINE_integer("trav", 6, "initial traverse bar definition, mm")
-flags.DEFINE_float("b", 0, "beam width, cm")
-flags.DEFINE_float("h", 0, "beam heigth, cm")
-flags.DEFINE_float("l", 0, "beam length, m")
-
-Es = 2e5  # MPa
-𝜙b = 0.9
-𝜙v = 0.85
-
-rebar = Rebar()
+from utils import display_df, get_valid_number
 
 CURRENT = os.getcwd()
 
+# =================================================================
+## Initialized
+# =================================================================
+materials = MaterialProperties(fc=25, fv=235, fy=390, Es=200000)
+print(materials)
 
-# ----------------------------------
-def main(_argv):
-    print("=============== TYPICAL BEAM DESIGN : USD METHOD ===============")
+geometry = SectionGeometry()
+geometry.rectangle(b=20, h=40)
+print(geometry)
 
-    print("PROPERTIES")
-    print(
-        f"f'c = {FLAGS.fc} Mpa, fy = {FLAGS.fy} Mpa, fv = {FLAGS.fv} MPa, Es = {Es:.0f} MPa"
-    )
-    print(f"𝜙b = {𝜙b}, 𝜙v = {𝜙v}")
+reinforcement = Reinforcement(main_dia=16, traverse_dia=9)
 
-    print(f"\nGEOMETRY")
-    print(f"b = {FLAGS.b} cm, h = {FLAGS.h} cm,")
+section = SectionGenerator(materials, geometry, reinforcement)
+section.section_properties(covering=2.5)
 
-    # instanciate
-    # Instanciate
-    beam = Beam(fc=FLAGS.fc, fy=FLAGS.fy, fv=FLAGS.fv, c=FLAGS.c)
+rebar_object = Rebar()
 
-    beam.section_properties(FLAGS.main, FLAGS.trav, FLAGS.b, FLAGS.h)
-    d, d1 = beam.eff_depth()
-    beam.capacity()
+shear_object = ShearReinforcement(materials)
 
-    # --------------------------------
-    ## Aanalysis
-    # --------------------------------
-    ask = input(
-        f"\nDo you want to run 'beam analysis' to display SFD and BMD! Y|N :"
-    ).upper()
-    if ask == "Y":
-        analysis = Analysis()
-        I = (1 / 12) * FLAGS.b * (FLAGS.h**3)  # cm4
+# =================================================================
+## Beam Analysis
+# =================================================================
 
-        print(f"Self weigth : {FLAGS.b * FLAGS.h * 2.4*9.81 *1e-4:.2f} kN/m")
+if input(f"\nDo you want to execute 'beam analysis' : Y|N ").upper() == "Y":
+    analysis = Analysis()
+    I = (1 / 12) * geometry.b * (geometry.h**3)  # cm4
 
-        # spans, supports, loads, R0 = analysis()
-        sfd_bmd_fig = analysis.analysis(FLAGS.E * 1e-3, I * 1e-8)
-    else:
-        sfd_bmd_fig = None
+    print(f"Self weigth : {geometry.b * geometry.h * 2.4*9.81 *1e-4:.2f} kN/m")
 
-    # --------------------------------
-    ## Design
-    # --------------------------------
-    N = []
-    main_reinf = []
-    traverse_reinf = []
-    middle_reinf = []
-    no_of_middle_rebars = []
-    spacing = []
-    n = 1
-    legend = []
+    # spans, supports, loads, R0 = analysis()
+    curve_fig = analysis.analysis(materials.Es * 1e-3, I * 1e-8)
+else:
+    curve_fig = None
 
-    # Display rebar df
-    table = os.path.join(CURRENT, "data/Deform_Bar.csv")
-    df = pd.read_csv(table)
-    display_df(df)
+# =================================================================
+## Design
+# =================================================================
+# Display rebar df
+file_name = os.path.join(CURRENT, "data/Deform_Bar.csv")
+df = pd.read_csv(file_name)
+display_df(df)
 
-    # Design reinforce
+
+# Design foe n section
+n = 1
+_main, _traverse, _long = [], [], []
+while True:
+    print(f"===================Section-{n}===================")
+
+    # Loads
+    Mu = get_valid_number("Define Mu in kN-m : ")
+    Vu = get_valid_number("Define Vu in kN : ")
+    Tu = get_valid_number("Define Tu in kN : ")
+    loads = Loads(Mu=Mu, Vu=Vu, Tu=Tu)
+
+    # Calculate reinforcements required
+    calculator = ReinforcementCalculator(section, loads)
+
+    print(f"\n[INFO] Main Reinforcement")
+    calculator.section_type()
+    N, main, As = calculator.main_reinf(rebar_object)
+
+    print(f"\n[INFO] Traverse Reinforcement")
     while True:
-        print(f"\n--------------- SECTION-{n} -----------------")
-        Mu = float(input("Define Mmoment, Mu in kN-m : "))
-        Vu = float(input("Define Shear, Vu in kN : "))
-        Tu = float(input("Define Torsion, Tu in kN-m : "))
-
-        # Check classification
-        beam.classification(Mu)
-
-        # Main bar required
-        beam.mainbar_req(Mu)
-
-        # Design main reinf
-        no, main_dia, As_main = beam.main_design()
-
-        # Design traverse
-        traverse_dia, Av, s, label = beam.traverse_design(Vu)
-
-        # PLot tile
-        if label == "Single stirrup":
-            text = f"{no} - ø{main_dia} mm, ø{traverse_dia} mm @ {s} cm"
-        else:
-            text = f"{no} - ø{main_dia} mm, 2 - ø{traverse_dia} mm @ {s} cm"
-
-        # Design longitudinal reinforcement
-        if Tu != 0:
-
-            Acp = FLAGS.b * FLAGS.h
-            Pcp = 2 * (FLAGS.b + FLAGS.h)
-
-            torsion = Torsion(FLAGS.fc, FLAGS.fv, FLAGS.fy, FLAGS.fv, FLAGS.fy, Vu, Tu)
-
-            (
-                no_of_main,
-                new_main_dia,
-                new_traverse,
-                new_spacing,
-                label,
-                no_of_long_rebar,
-                long_reinf_dia,
-            ) = torsion.design(
-                FLAGS.b, FLAGS.h, FLAGS.c, d, As_main, traverse_dia, Vu, Tu
-            )
-
-            # New PLot tile
-            if label == "Single stirrup":
-                text = f"{no_of_main} - ø{new_main_dia} mm, ø{new_traverse} mm @ {new_spacing} cm"
-            else:
-                text = f"{no_of_main} - ø{new_main_dia} mm, 2 - ø{new_traverse} mm @ {new_spacing} cm"
-
-            # Collect for plotting if Torsion
-            N.append(no_of_main)
-            main_reinf.append(new_main_dia)  # Conver mm to cm
-            traverse_reinf.append(new_traverse)  # Conver mm to cm
-            spacing.append(new_spacing)
-            no_of_middle_rebars.append(no_of_long_rebar)
-            middle_reinf.append(long_reinf_dia)  # Conver mm to cm
-            legend.append(text)
-        else:
-            # Collect for plotting if no Torsion
-            N.append(no)
-            main_reinf.append(main_dia)  # Conver mm to cm
-            traverse_reinf.append(traverse_dia)  # Conver mm to cm
-            spacing.append(s)
-            middle_reinf.append(0)
-            no_of_middle_rebars.append(0)
-            legend.append(text)
-
-        #
-        print(f"\n[REINF.] : ")
-        print(f"Main reinforcement : {np.array(main_reinf)}")
-        print(f"No.of Main reinforcement : {np.array(N)}")
-        print(f"Traverse reinforcement : {np.array(traverse_reinf)}")
-        print(f"Traverse spacing : {np.array(spacing)}")
-        print(f"Horizontal reinforcement : {np.array(middle_reinf)}")
-        print(f"No. of Horizontal reinforcement : {np.array(no_of_middle_rebars)}")
-        print(legend)
-
-        ask = input(f"\nDesign another section! Y|N :").upper()
-        if ask == "Y":
-            n += n
-        else:
+        traverse, Av, spacing = calculator.traverse_reinf(shear_object, rebar_object)
+        ask = input("Try again! : Y|N : ").upper()
+        if ask != "Y":
             break
 
-    # Rebars in each layer
-    print(f"\n--------------- REBARS LAYING IN SECTION -----------------")
-    bottom_layer, top_layer = rebar.rebar_laying(n, legend)
+    # Design longitudinal reinforcement
+    if Tu != 0:
+        torsion = Torsion(materials, loads)
+        context = torsion.design(
+            geometry.b,
+            geometry.h,
+            section.d,
+            As,
+            traverse,
+            c=2.5,
+        )
 
-    # Create section fig.
-    sections_fig = multi_sections(
-        n,
-        FLAGS.b,
-        FLAGS.h,
-        FLAGS.c,
-        (np.array(main_reinf) / 10).tolist(),  # Convert mm to cm and re-convert to list
-        (
-            np.array(traverse_reinf) / 10
-        ).tolist(),  # Convert mm to cm and re-convert to list
-        (
-            np.array(middle_reinf) / 10
-        ).tolist(),  # Convert mm to cm and re-convert to list
-        bottom_layer,
-        top_layer,
-        no_of_middle_rebars,
-        legend,
+        main = context["new_main"]
+        N = context["new_N"]
+        traverse = context["new_traverse"]
+        spacing = context["new_spacing"]
+        long_reinf = context["long_reinf"]
+        N_long = context["N_long"]
+
+    # Collect for plotting
+    _main.append([main, N])
+    _traverse.append([traverse, spacing])
+    _long.append([long_reinf, N_long]) if Tu != 0 else _long.append([0, 0])
+
+    if input(f"\nDesign another section! Y|N :").upper() == "Y":
+        n += n
+    else:
+        break
+
+
+# =================================================================
+## Plotting
+# =================================================================
+print(f"\n[INFO] Lay Rebars")
+plot = Plot()
+
+sections_fig = []
+for i in range(len(_main)):
+
+    (
+        print(
+            f"\nSection {i+1} : \nmain reinf: {_main[i][1]}-ø{_main[i][0]}mm, \nTraverse: ø{_traverse[i][0]}mm @ {_traverse[i][1]}m, \nlong reinf: {_long[i][1]}-ø{_long[i][0]}"
+        )
     )
+    context = section.reinforce_details(rebar_object)
+    fig = plot.plot_rec_section(context, _long[i][0], covering=2.5)
 
-    create_html(sfd_bmd_fig, sections_fig)
+    sections_fig.append(fig)
 
-    # TODO Development Length
-    # print(f"\nDevelopment Length : ")
-    # devLength = DevLength(FLAGS.fc, FLAGS.fy)
+plot.create_html(curve_fig, sections_fig)
 
-    # N = int(input(f"Provide number of main reinforce on bottom layer : "))
-    # devLength.tensile(FLAGS.b, FLAGS.c, dia_main, N)
-
-
-if __name__ == "__main__":
-    app.run(main)
 
 """
--run script
-    % cd <path to project directory>
-    % conda activate <your conda env name>
-    % python app/beam_design.py --b=3000 --h=24
-    % python app/beam_design.py --b=40 --h=60 --l=5
-
-    
+python app/beam_design.py
 """

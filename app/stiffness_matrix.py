@@ -7,8 +7,9 @@
 import numpy as np
 
 from utils import xi_coordinate
-from plot_curve import plot_combined
 from deflection import deflection
+
+from plot import Plot
 
 np.set_printoptions(precision=3)
 
@@ -709,7 +710,9 @@ def main(E, I, spans, support_type, loads, R0):
         spans, dy.flatten().tolist(), Qf.flatten().tolist(), E, I
     )
 
-    fig = plot_combined(
+    plot = Plot()
+
+    fig = plot.plot_curves(
         spans,
         Ltotal,
         stretch,

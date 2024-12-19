@@ -68,23 +68,34 @@ class Rebar:
 
         return bottom_layer, top_layer, no_of_middle_rebars
 
-    def calculate_rebar_positions(self, c, b, N, main_dia, travesre_dia):
-        if N == 1:
-            return [c + (b - 2 * c) / 2]
-        elif N == 2:
-            return [
-                c + travesre_dia + main_dia / 2,
-                b - c - travesre_dia - main_dia / 2,
-            ]
-        else:
-            positions = [
-                c
-                + main_dia / 2
-                + travesre_dia
-                + i * (b - 2 * c - main_dia - 2 * travesre_dia) / (N - 1)
-                for i in range(N)
-            ]
-            return positions
+    def calculate_rebar_positions(
+        self, covering, width, num_bars, main_dia, traverse_dia
+    ):
+        spacing = (width - 2 * covering - 2 * traverse_dia - num_bars * main_dia) / (
+            num_bars - 1
+        )
+        return [
+            covering + traverse_dia + main_dia / 2 + i * (main_dia + spacing)
+            for i in range(num_bars)
+        ]
+
+    # def calculate_rebar_positions(self, c, b, N, main_dia, travesre_dia):
+    #     if N == 1:
+    #         return [c + (b - 2 * c) / 2]
+    #     elif N == 2:
+    #         return [
+    #             c + travesre_dia + main_dia / 2,
+    #             b - c - travesre_dia - main_dia / 2,
+    #         ]
+    #     else:
+    #         positions = [
+    #             c
+    #             + main_dia / 2
+    #             + travesre_dia
+    #             + i * (b - 2 * c - main_dia - 2 * travesre_dia) / (N - 1)
+    #             for i in range(N)
+    #         ]
+    #         return positions
 
     def get_rebar_coordinates(
         self, b, d, c, main_dia, travesre_dia, bottom_layers, top_layers, middle_rebars

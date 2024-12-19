@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-import numpy as np
-
-
 from absl import app, flags
 from absl.flags import FLAGS
 
@@ -222,6 +219,7 @@ class Analysis:
         fig = stiffness_matrix.main(
             E, I, self.spans, self.supports, self.loads, self.R0
         )
+        fig.show()
         return fig
 
 

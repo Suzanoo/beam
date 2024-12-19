@@ -13,11 +13,20 @@ class MaterialProperties:
         else:
             self.β1 = 0.65
 
+    def __str__(self):
+        return f"Materials: f'c: {self.fc}, fv: {self.fv}, fy: {self.fy}, Es: {self.Es} mPa"
+
 
 class SectionGeometry:
-    def __init__(self, b, h) -> None:
+    def __init__(self) -> None:
+        """ """
+
+    def rectangle(self, b, h):
         self.b = b  # width (cm)
         self.h = h  # height (cm)
+
+    def __str__(self):
+        return f"Geometry: {self.b} x {self.h} cm"
 
 
 class Reinforcement:
@@ -118,11 +127,11 @@ class ReinforcementCalculator:
     def main_reinf(self, rebar_object):
         if self.type == "singly_reinforcement":
             As_major = self.singly_reinforced()
-            rebar_object.rebar_design(As_major)
+            return rebar_object.rebar_design(As_major)
 
         else:
             fs, As_major, As_minor = self.double_reinforced()
-            rebar_object.rebar_design(As_major)
+            return rebar_object.rebar_design(As_major)
 
     # 10) Calculate traverse spacing
     def traverse_reinf(self, shear_object, rebar_object):
