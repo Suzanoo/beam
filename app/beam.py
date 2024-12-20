@@ -21,12 +21,13 @@ class SectionGeometry:
     def __init__(self) -> None:
         """ """
 
-    def rectangle(self, b, h):
+    def rectangle(self, b, h, l=0):
         self.b = b  # width (cm)
         self.h = h  # height (cm)
+        self.l = l  # length (m)
 
     def __str__(self):
-        return f"Geometry: {self.b} x {self.h} cm"
+        return f"Geometry: {self.b}cm x {self.h}cm x {self.l}m"
 
 
 class Reinforcement:

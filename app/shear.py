@@ -41,6 +41,16 @@ class ShearCapacity:
         𝜙Vs2 = self.𝜙v * (np.sqrt(self.fc) / 4) * bw * d * 1e-1
         𝜙Vs = np.min(𝜙Vs1, 𝜙Vs2)
 
+    def max_shear_capacity(self, b, ln, d):
+        if (ln / d) < 2:
+            return self.𝜙v * (2 / 3) * np.sqrt(self.fc) * b * d * 1e-1  # kN
+        elif 2 <= (ln / d) <= 5:
+            return (
+                self.𝜙v * (1 / 18) * (10 + ln / d) * np.sqrt(self.fc) * b * d * 1e-1
+            )  # kN
+        else:
+            return None
+
 
 class ShearReinforcement:
     def __init__(self, materials):
@@ -118,7 +128,7 @@ class ShearReinforcement:
         while True:
             s = int(
                 input(
-                    f"\nTraverse: Spacing must less than  = {d/2:.2f} and 50 cm, please try spacing in cm : "
+                    f"Traverse: Spacing must less than  = {d/2:.2f} and 50 cm, please try spacing in cm : "
                 )
             )
             Avmin = 0.0015 * b * s
@@ -142,17 +152,18 @@ class ShearReinforcement:
                 if ask == "Y":
                     pass
                 else:
-                    print(f"[INFO] Traverse: ø-{traverse_dia} mm @ {s} cm")
+                    print(f"Traverse: ø-{traverse_dia} mm @ {s} cm")
                     break
             else:
                 print("Select again !!!")
                 pass
 
         # Horizontal
+        print(f"\n[CALC.] Extra Horizontal Reinforcement")
         while True:
             s2 = int(
                 input(
-                    f"\nExtra Horizontal: Spacing must less than  = {d/3:.2f} and 50 cm, please try spacing in cm: "
+                    f"Spacing must less than  = {d/3:.2f} and 50 cm, please try spacing in cm: "
                 )
             )
             Avhmin = 0.0025 * b * s2
@@ -171,9 +182,7 @@ class ShearReinforcement:
                 if ask == "Y":
                     pass
                 else:
-                    print(
-                        f"[INFO] Horizontal reinforcement: ø-{horizontal_dia} mm @ {s2} cm"
-                    )
+                    print(f"Horizontal reinforcement: ø-{horizontal_dia} mm @ {s2} cm")
                     N = int((np.ceil(d / s2) - 1) * 2)
                     break
             else:

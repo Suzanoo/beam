@@ -1,241 +1,166 @@
 import os
-import numpy as np
 import pandas as pd
-from absl import app, flags
-from absl.flags import FLAGS
 
-"""
-Deep Beam:
-    -simple beam: h/ln > 4/5 
-    -contineous: h/ln > 2/5
+from beam import (
+    MaterialProperties,
+    SectionGeometry,
+    Reinforcement,
+    Loads,
+    ReinforcementCalculator,
+)
 
-Critical section:
-    -Distribution load: 0.15ln <= d
-    -Point load: 0.50a <= d
-"""
-
-
-## FLAGS definition
-# https://stackoverflow.com/questions/69471891/clarification-regarding-abseil-library-flags
-
-flags.DEFINE_float("fc", 18, "240ksc, MPa")
-flags.DEFINE_integer("fy", 295, "SD40 main bar, MPa")
-flags.DEFINE_integer("fv", 235, "SR24 traverse, MPa")
-flags.DEFINE_integer("c", 3, "concrete covering, cm")
-
-flags.DEFINE_integer("main", 12, "initial main bar definition, mm")
-flags.DEFINE_integer("trav", 6, "initial traverse bar definition, mm")
-flags.DEFINE_integer("b", 0, "beam width, cm")
-flags.DEFINE_integer("h", 0, "beam heigth, cm")
-flags.DEFINE_integer("l", 0, "beam length, m")
-flags.DEFINE_float("Mu", 0, "Moment, kN-m")
-flags.DEFINE_float("Vu", 0, "Shear, kN")
-
-from beam_class import Beam
-from shear import ShearCapacity, ShearReinforcement
-from rebar import Rebar
 from beam_analysis import Analysis
 
-from utils import display_df
-from plot_section import multi_sections, create_html
+from section_generator import SectionGenerator
 
-## Constance
-Es = 2e5  # MPa
-𝜙b = 0.9
-𝜙v = 0.85
+from rebar import Rebar
+from shear import ShearCapacity, ShearReinforcement
+from torsion import Torsion
+from plot import Plot
 
-rebar = Rebar()
+from utils import display_df, get_valid_number
 
 CURRENT = os.getcwd()
 
+# =================================================================
+## Initialized
+# =================================================================
+materials = MaterialProperties(fc=25, fv=235, fy=390, Es=200000)
+print(materials)
 
-def max_shear_capacity(ln, d):
+geometry = SectionGeometry()
+geometry.rectangle(b=30, h=60, l=5)
+print(geometry)
 
-    if (ln / d) < 2:
-        return 𝜙v * (2 / 3) * np.sqrt(FLAGS.fc) * FLAGS.b * d * 1e-1  # kN
-    elif 2 <= (ln / d) <= 5:
-        return (
-            𝜙v * (1 / 18) * (10 + ln / d) * np.sqrt(FLAGS.fc) * FLAGS.b * d * 1e-1
-        )  # kN
-    else:
-        return None
+reinforcement = Reinforcement(main_dia=16, traverse_dia=9)
+
+section = SectionGenerator(materials, geometry, reinforcement)
+section.section_properties(covering=2.5)
+
+rebar_object = Rebar()
+
+shear_object = ShearReinforcement(materials)
+
+# Deep beam or NOT!
+if (geometry.h / geometry.l * 1e2) < (2 / 5):
+    print(f"\n[WARNING!] h/ln < 2/5 and it is not deep beam")
+
+# =================================================================
+## Beam Analysis
+# =================================================================
+
+if input(f"\nDo you want to execute 'beam analysis' : Y|N ").upper() == "Y":
+    analysis = Analysis()
+    I = (1 / 12) * geometry.b * (geometry.h**3)  # cm4
+
+    print(f"Self weigth : {geometry.b * geometry.h * 2.4*9.81 *1e-4:.2f} kN/m")
+
+    # spans, supports, loads, R0 = analysis()
+    curve_fig = analysis.analysis(materials.Es * 1e-3, I * 1e-8)
+else:
+    curve_fig = None
+
+# =================================================================
+## Design
+# =================================================================
+# Display rebar df
+file_name = os.path.join(CURRENT, "data/Deform_Bar.csv")
+df = pd.read_csv(file_name)
+display_df(df)
 
 
-def main(_argv):
-    print("=============== DEEPL BEAM DESIGN : USD METHOD ===============")
+# Design foe n section
+n = 1
+_main, _traverse, _long = [], [], []
+while True:
+    print(f"===================Section-{n}===================")
 
-    print("PROPERTIES")
-    print(
-        f"f'c = {FLAGS.fc} Mpa, fy = {FLAGS.fy} Mpa, fv = {FLAGS.fv} MPa, Es = {Es:.0f} MPa"
-    )
-    print(f"𝜙b = {𝜙b}, 𝜙v = {𝜙v}")
+    # Loads
+    Mu = get_valid_number("Define Mu in kN-m : ")
+    Vu = get_valid_number("Define Vu in kN : ")
+    Tu = get_valid_number("Define Tu in kN : ")
+    loads = Loads(Mu=Mu, Vu=Vu, Tu=Tu)
 
-    print(f"\nGEOMETRY")
-    print(f"b = {FLAGS.b} cm, h = {FLAGS.h} cm,l = {FLAGS.l} m")
+    # Calculate reinforcements required
+    calculator = ReinforcementCalculator(section, loads)
 
-    # Deep beam or NOT!
-    # if (FLAGS.h / FLAGS.l * 1e2) > (2 / 5):
-    #     print(
-    #         f"\n[WARNING!] h/ln > 2/5, Not a deep beaml, please use beam_design.py instead or revise your section! "
-    #     )
-    #     return
+    print(f"\n[CALC.] Main Reinforcement")
+    calculator.section_type()
+    N, main, As = calculator.main_reinf(rebar_object)
 
-    # Instanciate
-    beam = Beam(fc=FLAGS.fc, fy=FLAGS.fy, fv=FLAGS.fv, c=FLAGS.c)
-
-    beam.section_properties(FLAGS.main, FLAGS.trav, FLAGS.b, FLAGS.h)
-    d, d1 = beam.eff_depth()  # cm
-    beam.capacity()
-
-    # Max.shear capacity check for section
-    # if (FLAGS.l * 100 / d) > 5:
-    #     print(
-    #         f"\n[WARNING!] ln / d > 5, max.shear capacity meet critical, please revise your section!"
-    #     )
-    #     return
-
-    # --------------------------------
-    ## Aanalysis
-    # --------------------------------
-    ask = input(
-        f"\nDo you want execute beam analysis to display SFD and BMD! Y|N :"
-    ).upper()
-    if ask == "Y":
-        analysis = Analysis()
-        I = (1 / 12) * FLAGS.b * (FLAGS.h**3)  # cm4
-
-        # spans, supports, loads, R0 = analysis()
-        sfd_bmd_fig = analysis.analysis(FLAGS.E * 1e-3, I * 1e-8)
-    else:
-        sfd_bmd_fig = None
-
-    # --------------------------------
-    ## Design reinforcement
-    # --------------------------------
-    # Storage for plotting
-    N = []
-    main_reinf = []
-    traverse_reinf = []
-    middle_reinf = []
-    no_of_middle_rebars = []
-    spacing = []
-    n = 1
-    legend = []
-
-    ln = FLAGS.l * 100 - (2 * d)  # cm
-
-    # Display rebar df
-    table = os.path.join(CURRENT, "data/Deform_Bar.csv")
-    df = pd.read_csv(table)
-    display_df(df)
+    print(f"\n[CALC.] Traverse Reinforcement")
+    shearCapacity = ShearCapacity(materials.fc, materials.fv)
+    𝜙Vc = shearCapacity.flexural_shear(geometry.b, section.d)
 
     while True:
-        print(f"\n--------------- SECTION-{n} -----------------")
-        Mu = float(input("Define Mu in kN-m : "))
-        Vu = float(input("Define Vu in kN : "))
-
-        # --------------------------------
-        ## Main reinforcement
-        # --------------------------------
-        # Check classification
-        beam.classification(Mu)
-
-        # Main bar required
-        beam.mainbar_req(Mu)
-
-        # Design main reinf
-        no, main_dia, As_main = beam.main_design()
-
-        # Design traverse
-        # traverse_dia, Av, s = beam.traverse_design(d, Vu)
-
-        # --------------------------------
-        ## Traverse and Horizontal reinforcement
-        # --------------------------------
-        # Traverse
-        shearCapacity = ShearCapacity(FLAGS.fc, FLAGS.fv)
-        𝜙Vc = shearCapacity.flexural_shear(FLAGS.b, d)
-
-        # Horizontal
-        shearReinf = ShearReinforcement(FLAGS.fc, FLAGS.fv, FLAGS.fy)
-
-        traverse_dia, s, horizontal_dia, s2, n2, 𝜙Vs, label = shearReinf.deepBeam(
-            FLAGS.b, d, ln
+        traverse, spacing, long_reinf, s2, N_long, 𝜙Vs, label = shear_object.deepBeam(
+            geometry.b, section.d, geometry.l * 100
         )
-
-        # PLot tile
-        if label == "Single stirrup":
-            text = f"Main: {no} - ø{main_dia}mm, \nTraverse: ø{traverse_dia}mm @ {s} cm, \nLong.reinf.: ø{horizontal_dia}mm @ {s2} cm"
-        else:
-            text = f"Main: {no} - ø{main_dia}mm, \nTraverse: 2-ø{traverse_dia}mm @ {s} cm, \nLong.reinf.: ø{horizontal_dia}mm @ {s2} cm"
-
-        # Check condition of 𝜙Vn
-        𝜙Vn = 𝜙Vc + 𝜙Vs
-        𝜙Vnmax = max_shear_capacity(ln, d)
-
-        if 𝜙Vn <= 𝜙Vnmax:
-            print(
-                f"𝜙Vc = {𝜙Vc:.2f} kN, 𝜙Vs = {𝜙Vs:.2f} kN, 𝜙Vn = {𝜙Vn:.2f} kN, 𝜙Vnmax = {𝜙Vnmax:.2f} kN,"
-            )
-            print(f"SECTION OK")
-        else:
-            print(f"𝜙Vn > 𝜙Vnmax, SECTION IS NOT OK, Try again!!")
-
-        # Collect for plotting
-        N.append(no)
-        main_reinf.append(main_dia)
-        traverse_reinf.append(traverse_dia)
-        middle_reinf.append(horizontal_dia)
-        spacing.append(s)
-        no_of_middle_rebars.append(n2)
-        legend.append(text)
-
-        print(f"\n[REINF.] : ")
-        print(f"Main reinforcement : {np.array(main_reinf)}")
-        print(f"No.of Main reinforcement : {np.array(N)}")
-        print(f"Traverse reinforcement : {np.array(traverse_reinf)}")
-        print(f"Traverse spacing : {np.array(s)}")
-        print(f"Horizontal reinforcement : {np.array(middle_reinf)}")
-
-        ask = input("Design another section! Y|N :").upper()
-        if ask == "Y":
-            n += n
-        else:
+        if input("Try again! : Y|N : ").upper() != "Y":
             break
 
-    # Rebars in each layer
-    print(f"\n--------------- REBARS LAYING IN SECTION -----------------")
-    bottom_layer, top_layer = rebar.rebar_laying(n, legend)
+    # Check condition of 𝜙Vn
+    # print(f"\n[CHECK] Shear Condition")s
+    # 𝜙Vn = 𝜙Vc + 𝜙Vs
+    # 𝜙Vnmax = shearCapacity.max_shear_capacity(geometry.b, geometry.l * 1e2, section.d)
+    # if 𝜙Vnmax != None and 𝜙Vn <= 𝜙Vnmax:
+    #     print(f"SECTION OK")
+    # else:
+    #     sys.exit("𝜙Vn > 𝜙Vnmax, SECTION IS NOT OK, Create new section and Try Again!")
+    #     break
 
-    # Create section fig.
-    sections_fig = multi_sections(
-        n,
-        FLAGS.b,
-        FLAGS.h,
-        FLAGS.c,
-        (np.array(main_reinf) / 10).tolist(),  # Convert mm to cm and re-convert to list
-        (
-            np.array(traverse_reinf) / 10
-        ).tolist(),  # Convert mm to cm and re-convert to list
-        (
-            np.array(middle_reinf) / 10
-        ).tolist(),  # Convert mm to cm and re-convert to list
-        bottom_layer,
-        top_layer,
-        no_of_middle_rebars,
-        legend,
+    # Design longitudinal reinforcement
+    # if Tu != 0:
+    #     torsion = Torsion(materials, loads)
+    #     context = torsion.design(
+    #         geometry.b,
+    #         geometry.h,
+    #         section.d,
+    #         As,
+    #         traverse,
+    #         c=2.5,
+    #     )
+    #     # New value
+    #     main = context["new_main"]
+    #     N = context["new_N"]
+    #     traverse = context["new_traverse"]
+    #     spacing = context["new_spacing"]
+    #     long_reinf = context["long_reinf"]
+    #     N_long = context["N_long"]
+
+    # Collect for plotting
+    _main.append([main, N])
+    _traverse.append([traverse, spacing])
+    _long.append([long_reinf, N_long])
+
+    if input(f"\nDesign another section! Y|N :").upper() == "Y":
+        n += n
+    else:
+        break
+
+
+# =================================================================
+## Plotting
+# =================================================================
+print(f"\n[INFO] Lay Rebars")
+plot = Plot()
+
+sections_fig = []
+for i in range(len(_main)):
+
+    (
+        print(
+            f"\nSection {i+1} : \nmain reinf: {_main[i][1]}-ø{_main[i][0]}mm, \nTraverse: ø{_traverse[i][0]}mm @ {_traverse[i][1]}m, \nlong reinf: {_long[i][1]}-ø{_long[i][0]}"
+        )
     )
+    context = section.reinforce_details(rebar_object)
+    fig = plot.plot_rec_section(context, _long[i][0], covering=2.5)
 
-    create_html(sfd_bmd_fig, sections_fig)
+    sections_fig.append(fig)
 
+plot.create_html(curve_fig, sections_fig)
 
-if __name__ == "__main__":
-    app.run(main)
 
 """
-    % cd <path to project directory>
-    % conda activate <your conda env name>
-    % python app/deep_beam.py --b=60 --h=100 --l=5
-    % python app/deep_beam.py --fc=24 --fy=395 --b=35 --h=100 --l=4
-
+python app/deep.py
 """
