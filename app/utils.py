@@ -42,8 +42,8 @@ def get_valid_list_input(prompt, N):
             if len(array) != N:
                 raise ValueError(f"Input length is {len(array)} but must be {N}.")
 
-            confirm = input("Confirm? Y|N: ").strip().upper()
-            if confirm == "Y":
+            print(f"Spans : {array}")
+            if input("Confirm? Y|N: ").strip().upper() == "Y":
                 return array  # Return the valid numpy array if confirmed
             else:
                 print("Let's try again.")

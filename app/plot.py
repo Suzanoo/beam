@@ -300,7 +300,7 @@ class Plot:
         minMoment,
         XmaxM,
         XminM,
-        deflectionDFQ,
+        deflectionDFQ=None,
     ):
         shear_fig = self.plot_curve(
             "Shear", spans, Ltotal, stretch, shearDFQ, maxShear, minShear, XmaxQ, XminQ
@@ -316,9 +316,18 @@ class Plot:
             XmaxM,
             XminM,
         )
-        deflection_fig = self.plot_curve(
-            "Deflection", spans, Ltotal, stretch, deflectionDFQ, None, None, None, None
-        )
+        if deflectionDFQ != None:
+            deflection_fig = self.plot_curve(
+                "Deflection",
+                spans,
+                Ltotal,
+                stretch,
+                deflectionDFQ,
+                None,
+                None,
+                None,
+                None,
+            )
 
         fig = make_subplots(
             rows=3,
@@ -336,8 +345,9 @@ class Plot:
             fig.add_trace(trace, row=1, col=1)
         for trace in moment_fig["data"]:
             fig.add_trace(trace, row=2, col=1)
-        for trace in deflection_fig["data"]:
-            fig.add_trace(trace, row=3, col=1)
+        if deflectionDFQ != None:
+            for trace in deflection_fig["data"]:
+                fig.add_trace(trace, row=3, col=1)
 
         fig.update_yaxes(visible=False, row=3, col=1)
         fig.update_layout(height=800, showlegend=False)

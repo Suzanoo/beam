@@ -9,7 +9,7 @@ from beam import (
     ReinforcementCalculator,
 )
 
-from beam_analysis import Analysis
+from beam_analysis import BeamAnalysis
 
 from section_generator import SectionGenerator
 
@@ -48,15 +48,15 @@ if (geometry.h / geometry.l * 1e2) < (2 / 5):
 # =================================================================
 ## Beam Analysis
 # =================================================================
-
 if input(f"\nDo you want to execute 'beam analysis' : Y|N ").upper() == "Y":
-    analysis = Analysis()
+
     I = (1 / 12) * geometry.b * (geometry.h**3)  # cm4
 
     print(f"Self weigth : {geometry.b * geometry.h * 2.4*9.81 *1e-4:.2f} kN/m")
 
-    # spans, supports, loads, R0 = analysis()
-    curve_fig = analysis.analysis(materials.Es * 1e-3, I * 1e-8)
+    analysis = BeamAnalysis(materials.Es * 1e-3, I * 1e-8)
+    analysis.calculators_force()
+    curve_fig = analysis.plot_diagram()
 else:
     curve_fig = None
 
