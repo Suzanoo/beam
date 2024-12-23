@@ -26,6 +26,16 @@ class SectionGeometry:
         self.h = h  # height (cm)
         self.l = l  # length (m)
 
+    def tee_beam(self, b, bw, h, hf, l):
+        self.b = b
+        self.bw = bw
+        self.h = h
+        self.hf = hf
+        self.l = l
+
+        print(f"\nGEOMETRY")
+        print(f"b = {b} cm, bw = {bw} cm, h = {h} cm, hf = {hf} cm, l = {l} m")
+
     def __str__(self):
         return f"Geometry: {self.b}cm x {self.h}cm x {self.l}m"
 

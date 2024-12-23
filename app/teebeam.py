@@ -2,10 +2,21 @@ import os
 import pandas as pd
 from absl import app, flags
 from absl.flags import FLAGS
-from beam_class import Beam
+
+from beam import (
+    MaterialProperties,
+    SectionGeometry,
+    Reinforcement,
+    Loads,
+    ReinforcementCalculator,
+)
+from section_generator import SectionGenerator
+from rebar import Rebar
+from shear import ShearReinforcement
+from torsion import Torsion
 from torsion import Torsion
 
-from utils import display_df
+from utils import display_df, get_valid_number
 
 # from tools.devLength import DevLength
 
@@ -70,79 +81,80 @@ def main(_argv):
         "============================== TEE BEAM DESIGN : USD METHOD ============================== "
     )
 
-    print("PROPERTIES")
-    print(
-        f"f'c = {FLAGS.fc} Mpa, fy = {FLAGS.fy} Mpa, fv = {FLAGS.fv} MPa, Es = {Es:.0f} MPa"
-    )
-    print(f"𝜙b = {𝜙b}, 𝜙v = {𝜙v}")
+    # =================================================================
+    ## Initialized
+    # =================================================================
+    materials = MaterialProperties(fc=25, fv=235, fy=390, Es=200000)
+    print(materials)
 
-    print(f"\nGEOMETRY")
-    print(
-        f"bw = {FLAGS.bw} cm, b = {FLAGS.b} cm, hf = {FLAGS.hf} cm, h = {FLAGS.h} cm,l = {FLAGS.l} m"
-    )
+    geometry = SectionGeometry()
+    geometry.tee_beam(FLAGS.b, FLAGS.bw, FLAGS.h, FLAGS.hf, FLAGS.l)
 
-    # instanciate
-    beam = Beam(fc=FLAGS.fc, fy=FLAGS.fy, fv=FLAGS.fv, c=FLAGS.c)
+    reinforcement = Reinforcement(main_dia=16, traverse_dia=9)
 
-    beam.section_properties(FLAGS.main, FLAGS.trav, FLAGS.b, FLAGS.h)
-    beam.beta()
-    beam.eff_depth()
-    beam.percent_reinf()
+    section = SectionGenerator(materials, geometry, reinforcement)
+    section.section_properties(covering=2.5)
 
+    rebar_object = Rebar()
+
+    shear_object = ShearReinforcement(materials)
+
+    # =================================================================
+    ## Check tee beam conditions
+    # =================================================================
     # Check nuetral axis
-    c = neutal_axis(beam.β1, beam.p, beam.d)
+    c = neutal_axis(materials.β1, section.p, section.d)
 
     # Calculate 𝜙Mn
     if c < FLAGS.hf:
         print("Rectangular Beam")
-        beam.capacity(beam.d)
 
     else:
-        As = beam.p * FLAGS.b * beam.d
-        𝜙Mn1 = tee_capacity(beam.d, As)
-        print("Tee Beam")
-        print(f"\nSection capacity : \n𝜙Mn = {𝜙Mn1:.2f} kN-m")
+        As = section.p * geometry.b * section.d
+        𝜙Mn1 = tee_capacity(section.d, As)
+        print(f"\nTee Beam")
+        print(f"New section capacity : \n𝜙Mn = {𝜙Mn1:.2f} kN-m")
 
         # Override 𝜙Mn1
-        beam.𝜙Mn1 = 𝜙Mn1
+        section.𝜙Mn1 = 𝜙Mn1
 
-    # Check classification
-    beam.classification(FLAGS.Mu)
-
+    # =================================================================
+    ## Design
+    # =================================================================
     # Display rebar df
-    table = os.path.join(CURRENT, "data/Deform_Bar.csv")
-    df = pd.read_csv(table)
+    file_name = os.path.join(CURRENT, "data/Deform_Bar.csv")
+    df = pd.read_csv(file_name)
     display_df(df)
+    # Loads
+    Mu = get_valid_number("Define Mu in kN-m : ")
+    Vu = get_valid_number("Define Vu in kN : ")
+    Tu = get_valid_number("Define Tu in kN : ")
+    loads = Loads(Mu=Mu, Vu=Vu, Tu=Tu)
 
-    # Main bar required
-    data = beam.mainbar_req(FLAGS.Mu)
+    # Calculate reinforcements required
+    calculator = ReinforcementCalculator(section, loads)
 
-    # Design main reinf
-    no, main_dia, As_main = beam.main_design()
+    print(f"\n[INFO] Main Reinforcement")
+    calculator.section_type()
+    N, main, As = calculator.main_reinf(rebar_object)
 
-    # Design traverse
-    if FLAGS.Vu != 0:
-        traverse_dia, Av, s = beam.traverse_design(FLAGS.Vu)
+    print(f"\n[INFO] Traverse Reinforcement")
+    while True:
+        traverse, Av, spacing = calculator.traverse_reinf(shear_object, rebar_object)
+        ask = input("Try again! : Y|N : ").upper()
+        if ask != "Y":
+            break
 
     # Design longitudinal reinforcement
-    if FLAGS.Tu != 0:
-
-        Acp = FLAGS.b * FLAGS.h
-        Pcp = 2 * (FLAGS.b + FLAGS.h)
-
-        torsion = Torsion(
-            FLAGS.fc, FLAGS.fv, FLAGS.fy, FLAGS.fv, FLAGS.fy, FLAGS.Vu, FLAGS.Tu
-        )
-
-        (
-            no_of_main,
-            new_main_dia,
-            new_traverse,
-            new_spacing,
-            no_of_long_rebar,
-            long_reinf_dia,
-        ) = torsion.design(
-            FLAGS.b, FLAGS.h, FLAGS.c, beam.d, As_main, traverse_dia, FLAGS.Vu, FLAGS.Tu
+    if Tu != 0:
+        torsion = Torsion(materials, loads)
+        context = torsion.design(
+            geometry.b,
+            geometry.h,
+            section.d,
+            As,
+            traverse,
+            c=2.5,
         )
 
 
@@ -153,7 +165,7 @@ if __name__ == "__main__":
 -run script
     % cd <path to project directory>
     % conda activate <your conda env name>
-    % python app/teebeam.py --bw=30 --b=100 --hf=10 --h=40 --l=4 --Mu=85 --Vu=120 --Tu=12
-    % python app/teebeam.py --fc=24 --fy=395 --bw=30 --b=100 --hf=10 --h=40 --l=5 --Mu=5 --Vu=2.5
+    % python app/teebeam.py --bw=30 --b=100 --hf=10 --h=40 --l=4 
+    % python app/teebeam.py --fc=24 --fy=395 --bw=30 --b=100 --hf=10 --h=40 --l=5 
     
 """
